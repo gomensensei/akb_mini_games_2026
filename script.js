@@ -35,23 +35,35 @@ function normalizeMembers(rawList) {
     });
 }
 
+// 非同步載入 JSON
 async function loadData() {
     try {
-        const [mRes, lRes] = await Promise.all([ fetch('members.json'), fetch('langs.json') ]);
+        const [mRes, lRes] = await Promise.all([
+            fetch('members.json'),
+            fetch('langs.json')
+        ]);
         if (!mRes.ok || !lRes.ok) throw new Error("JSON files not found");
+        
         const mRaw = await mRes.json();
         langs = await lRes.json();
+        
         membersDB = normalizeMembers(mRaw);
         App.init();
     } catch (err) {
         console.error("Data Load Error:", err);
-        alert("載入資料失敗！請確保 members.json 和 langs.json 存在於正確目錄。");
+        alert("載入資料失敗！請確保 members.json 和 langs.json 存在於正確目錄，並且使用伺服器環境運行。");
     }
 }
 
+// 遊戲清單與參數
 const gameList = [
-    { id: 'mem', baseTime: 40000 }, { id: 'sort', baseTime: 15000 }, { id: 'find', baseTime: 15000 },
-    { id: 'macro', baseTime: 15000 }, { id: 'duel', baseTime: 5000 }, { id: 'smile', baseTime: 12000 }, { id: 'puz', baseTime: 25000 }
+    { id: 'mem', baseTime: 40000 },
+    { id: 'sort', baseTime: 15000 },
+    { id: 'find', baseTime: 15000 },
+    { id: 'macro', baseTime: 15000 },
+    { id: 'duel', baseTime: 5000 },
+    { id: 'smile', baseTime: 12000 },
+    { id: 'puz', baseTime: 25000 }
 ];
 
 function detectLang() {
@@ -77,9 +89,12 @@ function applyLang() {
         const key = el.getAttribute('data-i18n-placeholder');
         if (langs[currentLang] && langs[currentLang][key]) el.placeholder = langs[currentLang][key];
     });
+    
     if (App.mode !== '' && document.getElementById('gameTitleHint')) {
         document.getElementById('gameTitleHint').textContent = `${getGameName(gameList.find(g=>g.id===App.queue[App.currentQIdx]))} - ${App.round}/${App.maxRounds}`;
     }
+    
+    // 如果正在結算畫面，重新繪製畫布以切換語言
     if (!document.getElementById('view-result').classList.contains('hidden')) {
         App.generateResultCanvas();
         document.getElementById('btnShareText').textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
@@ -107,12 +122,12 @@ function getGenDisplay(member) { return member.genString; }
 document.getElementById('langSelector').addEventListener('change', (e) => { currentLang = e.target.value; applyLang(); });
 
 function shuffle(arr) { let a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
 function triggerConfetti() { 
     if (App.mode === 'challenge') return; 
     confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#FF1493', '#4CAF50', '#00FFFF'], zIndex: 9999 }); 
 }
 
-// 萬能顏色轉換器 (防止舊手機 Canvas 不支援 8 位 Hex)
 function hexToRgba(hex, alpha) {
     let r = 0, g = 0, b = 0;
     if (hex.length === 4) { r = parseInt(hex[1]+hex[1], 16); g = parseInt(hex[2]+hex[2], 16); b = parseInt(hex[3]+hex[3], 16); } 
@@ -120,7 +135,7 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// 絕對防崩潰嘅圓角矩形畫法
+// 絕對相容的畫布圓角
 function drawRoundRect(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -269,6 +284,7 @@ const App = {
         return `${label} ${names}`;
     },
 
+    // 修復點：純粹繪製 Canvas，不干涉 DOM 結構
     generateResultCanvas() {
         const canvas = document.createElement('canvas'); const scale = 3, w = 400, h = 600;
         canvas.width = w * scale; canvas.height = h * scale; const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
@@ -276,7 +292,7 @@ const App = {
         const grad = ctx.createLinearGradient(0,0,w,h); 
         if (this.lastTarget && this.lastTarget.c1) {
             grad.addColorStop(0, '#ffffff'); 
-            grad.addColorStop(0.5, hexToRgba(this.lastTarget.c1, 0.5)); // 安全透明度轉換
+            grad.addColorStop(0.5, hexToRgba(this.lastTarget.c1, 0.5));
             grad.addColorStop(1, hexToRgba(this.lastTarget.c2, 0.6));
         } else {
             grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
@@ -284,8 +300,6 @@ const App = {
         ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
         
         ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
-        
-        // 使用安全語法畫框
         drawRoundRect(ctx, 20, 20, w-40, h-40, 20);
         ctx.shadowColor = 'transparent';
         
@@ -303,11 +317,15 @@ const App = {
             { text: this.score.toString(), font: "900 48px sans-serif", color: "#2C3E50", h: 48, gap: 0 }
         ];
         drawInfoGraphicText(ctx, w/2, h/2, texts);
-        document.getElementById('resultCanvasPreview').src = canvas.toDataURL('image/png');
+        
+        const previewImg = document.getElementById('resultCanvasPreview');
+        if (previewImg) previewImg.src = canvas.toDataURL('image/png');
     },
 
     showFinalResult() {
         if(this.mode === '') return;
+        
+        // 生成戰績畫布
         this.generateResultCanvas();
         
         if (this.mode === 'classic') {
@@ -387,7 +405,7 @@ const Games = {
                             this.pairs++;
                             setTimeout(() => { 
                                 this.flipped.forEach(f=>f.classList.add('matched')); this.flipped=[]; this.lock=false; 
-                                if(this.pairs===8) { App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); App.roundEndDelay(1500); }
+                                if(this.pairs===8) { App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(1500); }
                             }, App.getDelay(500));
                         } else { setTimeout(() => { this.flipped.forEach(f=>f.classList.remove('flipped')); this.flipped=[]; this.lock=false; }, App.getDelay(1000)); }
                     }
@@ -415,7 +433,7 @@ const Games = {
                         this.isActive = false; 
                         if(this.picks.every((id,i)=>id===this.correctIds[i])) { 
                             c.querySelectorAll('.sort-card').forEach(x=>{x.classList.add('correct','revealed'); x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;});
-                            App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); App.roundEndDelay(2000); 
+                            App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(2000); 
                         } else { 
                             c.classList.add('shake'); c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('wrong')); App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
                             setTimeout(()=>{c.classList.remove('shake'); c.querySelectorAll('.sort-card').forEach(x=>{x.classList.remove('wrong','selected'); x.querySelector('.sort-badge').textContent='';}); this.picks=[]; this.isActive=true;}, App.getDelay(800));
@@ -437,7 +455,6 @@ const Games = {
             let pool = [this.target]; while(pool.length<20) pool.push(membersDB[Math.floor(Math.random()*membersDB.length)]);
             const rect = c.getBoundingClientRect() || {width:300, height:300}; 
             const ns = window.innerWidth > 768 ? 90 : 65; 
-            
             shuffle(pool).forEach(m => {
                 const el = document.createElement('div'); el.className = 'fly-node'; el.dataset.id = m.id;
                 el.style.width=el.style.height=ns+'px';
@@ -451,7 +468,7 @@ const Games = {
                         this.isActive=false; el.classList.add('correct'); c.classList.add('dimmed'); 
                         el.style.transform = `translate(${rect.width/2 - ns/2}px, ${rect.height/2 - ns/2}px) scale(2)`;
                         el.style.boxShadow = `0 0 40px ${this.target.c1}, inset 0 0 20px ${this.target.c2}`;
-                        App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); App.roundEndDelay(2500); 
+                        App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(2500); 
                     } else { App.score = Math.max(0, App.score-50); document.getElementById('scoreDisplay').textContent=App.score; el.style.borderColor='red'; setTimeout(()=>el.style.borderColor='#fff', 300); }
                 }; c.appendChild(el); this.nodes.push({el, x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, size:ns});
             });
@@ -474,7 +491,7 @@ const Games = {
                 b.onclick = () => { 
                     if(!this.isActive) return; this.isActive=false; 
                     img.style.transition = `transform ${App.getDelay(600)}ms ease`; img.style.transform='scale(1) translate(0,0)'; 
-                    if(m.id===this.target.id) { b.classList.add('correct'); App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); } 
+                    if(m.id===this.target.id) { b.classList.add('correct'); App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); } 
                     else { b.classList.add('wrong'); Array.from(opts.children).find(x=>x.dataset.id===this.target.id).classList.add('correct'); }
                     App.roundEndDelay(2500); 
                 }; opts.appendChild(b);
@@ -495,7 +512,7 @@ const Games = {
                 el.innerHTML = `<img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/200x300/FFB6C1/FFF'"><div class="duel-gen">${getGenDisplay(m)}</div><div class="duel-name">${getRubyNameHTML(m)}</div>`;
                 el.onclick = () => {
                     if(!this.isActive) return; this.isActive=false; c.querySelectorAll('.duel-card').forEach(x=>x.classList.add('revealed')); 
-                    if((i===0&&m1.genNum<m2.genNum)||(i===1&&m2.genNum<m1.genNum)) { el.classList.add('correct'); App.addScore(600, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); }
+                    if((i===0&&m1.genNum<m2.genNum)||(i===1&&m2.genNum<m1.genNum)) { el.classList.add('correct'); App.addScore(600, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); }
                     else { el.classList.add('wrong'); c.style.animation='shake 0.4s'; document.getElementById(`duel${i===0?1:0}`).classList.add('correct'); }
                     App.roundEndDelay(1500);
                 }; c.appendChild(el);
@@ -518,7 +535,7 @@ const Games = {
                 const b = document.createElement('button'); b.className = 'opt-btn'; b.dataset.id = m.id; b.innerHTML = getRubyNameHTML(m);
                 b.onclick = () => { 
                     if(!this.isActive) return; this.isActive=false; view.classList.add('revealed'); 
-                    if(m.id===this.target.id) { b.classList.add('correct'); App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); } 
+                    if(m.id===this.target.id) { b.classList.add('correct'); App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); } 
                     else { b.classList.add('wrong'); Array.from(opts.children).find(x=>x.dataset.id===this.target.id).classList.add('correct'); }
                     App.roundEndDelay(2500); 
                 }; opts.appendChild(b);
@@ -554,7 +571,7 @@ const Games = {
                 }; c.insertBefore(el, document.getElementById('puzOverlay'));
             }
         },
-        check() { if(this.state.every(p=>p.id===p.pos && p.rot===0)) { this.isActive=false; document.getElementById('puzOverlay').style.opacity = 1; App.addScore(1200, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); App.roundEndDelay(2500); } },
+        check() { if(this.state.every(p=>p.id===p.pos && p.rot===0)) { this.isActive=false; document.getElementById('puzOverlay').style.opacity = 1; App.addScore(1200, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(2500); } },
         onTimeOut() { document.getElementById('puzOverlay').style.opacity = 1; App.roundEndDelay(2000); }
     }
 };
