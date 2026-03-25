@@ -36,7 +36,7 @@ async function loadData() {
         App.init();
     } catch (err) {
         console.error("Data Load Error:", err);
-        alert("載入資料失敗！請確保 members.json 和 langs.json 格式正確且已上傳至 GitHub。\n錯誤訊息: " + err.message);
+        alert("Loading Error" + err.message);
     }
 }
 
