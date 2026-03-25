@@ -3,9 +3,6 @@ let langs = {};
 let currentLang = 'zh-HK';
 let leaderboard = [];
 
-// ==========================================
-// 資料清洗引擎
-// ==========================================
 function normalizeMembers(rawList) {
     return rawList.map((m, index) => {
         let kana = m.name_kana || "";
@@ -35,35 +32,23 @@ function normalizeMembers(rawList) {
     });
 }
 
-// 非同步載入 JSON
 async function loadData() {
     try {
-        const [mRes, lRes] = await Promise.all([
-            fetch('members.json'),
-            fetch('langs.json')
-        ]);
+        const [mRes, lRes] = await Promise.all([ fetch('members.json'), fetch('langs.json') ]);
         if (!mRes.ok || !lRes.ok) throw new Error("JSON files not found");
-        
         const mRaw = await mRes.json();
         langs = await lRes.json();
-        
         membersDB = normalizeMembers(mRaw);
         App.init();
     } catch (err) {
         console.error("Data Load Error:", err);
-        alert("載入資料失敗！請確保 members.json 和 langs.json 存在於正確目錄，並且使用伺服器環境運行。");
+        alert("載入資料失敗！請確保 members.json 和 langs.json 存在於正確目錄。");
     }
 }
 
-// 遊戲清單與參數
 const gameList = [
-    { id: 'mem', baseTime: 40000 },
-    { id: 'sort', baseTime: 15000 },
-    { id: 'find', baseTime: 15000 },
-    { id: 'macro', baseTime: 15000 },
-    { id: 'duel', baseTime: 5000 },
-    { id: 'smile', baseTime: 12000 },
-    { id: 'puz', baseTime: 25000 }
+    { id: 'mem', baseTime: 40000 }, { id: 'sort', baseTime: 15000 }, { id: 'find', baseTime: 15000 },
+    { id: 'macro', baseTime: 15000 }, { id: 'duel', baseTime: 5000 }, { id: 'smile', baseTime: 12000 }, { id: 'puz', baseTime: 25000 }
 ];
 
 function detectLang() {
@@ -89,12 +74,9 @@ function applyLang() {
         const key = el.getAttribute('data-i18n-placeholder');
         if (langs[currentLang] && langs[currentLang][key]) el.placeholder = langs[currentLang][key];
     });
-    
     if (App.mode !== '' && document.getElementById('gameTitleHint')) {
         document.getElementById('gameTitleHint').textContent = `${getGameName(gameList.find(g=>g.id===App.queue[App.currentQIdx]))} - ${App.round}/${App.maxRounds}`;
     }
-    
-    // 如果正在結算畫面，重新繪製畫布以切換語言
     if (!document.getElementById('view-result').classList.contains('hidden')) {
         App.generateResultCanvas();
         document.getElementById('btnShareText').textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
@@ -122,7 +104,6 @@ function getGenDisplay(member) { return member.genString; }
 document.getElementById('langSelector').addEventListener('change', (e) => { currentLang = e.target.value; applyLang(); });
 
 function shuffle(arr) { let a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-
 function triggerConfetti() { 
     if (App.mode === 'challenge') return; 
     confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#FF1493', '#4CAF50', '#00FFFF'], zIndex: 9999 }); 
@@ -135,7 +116,6 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// 絕對相容的畫布圓角
 function drawRoundRect(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -284,7 +264,7 @@ const App = {
         return `${label} ${names}`;
     },
 
-generateResultCanvas() {
+    generateResultCanvas() {
         const canvas = document.createElement('canvas'); const scale = 3, w = 400, h = 600;
         canvas.width = w * scale; canvas.height = h * scale; const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
         
@@ -317,23 +297,26 @@ generateResultCanvas() {
         ];
         drawInfoGraphicText(ctx, w/2, h/2, texts);
         
-        // 🚀 防禦級檢查：確保 HTML 標籤存在才塞入圖片
-        const previewImg = document.getElementById('resultCanvasPreview');
+        // 🚀 動態防禦：如果找不到 img 標籤，就自動生一個塞入 DOM！
+        let previewImg = document.getElementById('resultCanvasPreview');
+        if (!previewImg) {
+            console.warn("⚠️ 防禦機制啟動：找不到 resultCanvasPreview，正在動態建立...");
+            const wrapNode = document.getElementById('canvasWrapNode') || document.querySelector('.canvas-preview-wrap');
+            if (wrapNode) {
+                previewImg = document.createElement('img');
+                previewImg.id = 'resultCanvasPreview';
+                previewImg.style.width = '100%';
+                wrapNode.appendChild(previewImg);
+            }
+        }
+        
         if (previewImg) {
             previewImg.src = canvas.toDataURL('image/png');
-        } else {
-            console.error("嚴重警告：找不到 <img id='resultCanvasPreview'> 標籤！");
-            alert("系統偵測到你的瀏覽器正在讀取「舊版的 index.html」！請強制重新整理網頁 (Ctrl+F5 或 清除手機瀏覽器快取) 來解決此問題。");
-            
-            // 就算出錯，都夾硬將圖片生出嚟俾你下載，保證唔會白玩
-            document.getElementById('view-result').innerHTML += `<img id="resultCanvasPreview" src="${canvas.toDataURL('image/png')}" style="width:100%; border-radius:24px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); margin-bottom: 20px;">`;
         }
     },
 
     showFinalResult() {
         if(this.mode === '') return;
-        
-        // 生成戰績畫布
         this.generateResultCanvas();
         
         if (this.mode === 'classic') {
