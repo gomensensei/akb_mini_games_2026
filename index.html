@@ -18,33 +18,38 @@
                 <option value="zh-TW">繁體 (TW)</option>
                 <option value="zh-CN">简体</option>
                 <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
                 <option value="en">English</option>
+                <option value="th">ภาษาไทย</option>
+                <option value="id">Bahasa Indonesia</option>
             </select>
         </div>
         <div class="score-board">Score: <span id="scoreDisplay">0</span></div>
     </header>
 
     <div class="timer-bg hidden" id="globalTimerBar"><div class="timer-fill" id="globalTimerFill"></div></div>
-    <div style="text-align:center; font-weight:900; color:var(--primary); margin-bottom:10px;" id="gameTitleHint" class="hidden"></div>
+    <div style="text-align:center; font-weight:900; color:var(--primary); margin-bottom:10px; font-size: 1.1rem;" id="gameTitleHint" class="hidden"></div>
 
     <main id="view-dashboard" class="stage-active">
-        <h1 style="color: var(--primary); text-align: center; font-size: 2.2rem; margin: 0 0 10px; text-shadow: 0 4px 10px rgba(0,0,0,0.05);" data-i18n="app_title">AKB48 粉絲入門挑戰</h1>
+        <h1 style="color: var(--primary); text-align: center; font-size: 2.2rem; margin: 0 0 15px; text-shadow: 0 4px 10px rgba(0,0,0,0.05);" data-i18n="app_title">AKB48 粉絲入門挑戰</h1>
         
-        <div class="mode-card glass-panel" onclick="App.startMode('classic')">
-            <h2 data-i18n="mode_classic">🏆 經典挑戰</h2>
-            <p data-i18n="desc_classic">挑戰 7 項小遊戲，和朋友比拼分數！</p>
-        </div>
-        <div class="mode-card glass-panel" onclick="App.showModal('casual')">
-            <h2 data-i18n="mode_casual">☕ 自由探索</h2>
-            <p data-i18n="desc_casual">選擇單一遊戲輕鬆遊玩。</p>
-        </div>
-        <div class="mode-card glass-panel" onclick="App.showModal('custom')">
-            <h2 data-i18n="mode_custom">🛠️ 自訂組合</h2>
-            <p data-i18n="desc_custom">挑選你喜歡的遊戲清單。</p>
-        </div>
-        <div class="mode-card glass-panel" onclick="App.showModal('challenge')">
-            <h2 data-i18n="mode_challenge">🔥 極限生存</h2>
-            <p data-i18n="desc_challenge">單一遊戲耐久戰！</p>
+        <div class="dashboard-menu">
+            <div class="mode-card glass-panel" onclick="App.startMode('classic')">
+                <h2 data-i18n="mode_classic">🏆 經典挑戰</h2>
+                <p data-i18n="desc_classic">挑戰 7 項小遊戲，和朋友比拼分數！</p>
+            </div>
+            <div class="mode-card glass-panel" onclick="App.showModal('casual')">
+                <h2 data-i18n="mode_casual">☕ 自由探索</h2>
+                <p data-i18n="desc_casual">選擇單一遊戲輕鬆遊玩。</p>
+            </div>
+            <div class="mode-card glass-panel" onclick="App.showModal('custom')">
+                <h2 data-i18n="mode_custom">🛠️ 自訂組合</h2>
+                <p data-i18n="desc_custom">挑選你喜歡的遊戲清單。</p>
+            </div>
+            <div class="mode-card glass-panel" onclick="App.showModal('challenge')">
+                <h2 data-i18n="mode_challenge">🔥 極限生存</h2>
+                <p data-i18n="desc_challenge">單一遊戲 50 回合耐久戰！</p>
+            </div>
         </div>
 
         <div class="leaderboard-box hidden" id="lbContainer">
@@ -72,7 +77,16 @@
     </main>
 
     <main id="view-result" class="hidden">
-        <div class="canvas-preview-wrap"><img id="resultCanvasPreview" src=""></div>
+        <div class="result-card glass-panel" id="resultCardNode">
+            <div class="result-badge" id="resBadge">👑</div>
+            <h2 class="result-title" id="resTitle">AKB 知識王</h2>
+            <div style="font-weight: 900; color: var(--text-main); margin-bottom: 5px; font-size: 1.1rem;" id="resModeLabel">經典挑戰</div>
+            <div class="played-games-list" id="resGamesList">本次試煉：對對碰, 排序</div>
+            <div class="result-score-wrap">
+                <div class="result-score-label">TOTAL SCORE</div>
+                <div class="result-score-val" id="resScoreVal">0</div>
+            </div>
+        </div>
         <div class="social-panel">
             <input type="text" id="playerName" class="name-input hidden" maxlength="12" placeholder="輸入名字參與排行榜" data-i18n-placeholder="ph_name">
             <div class="row">
@@ -94,13 +108,7 @@
         </div>
     </div>
 
-    <div class="modal-overlay flex-center hidden" id="downloadModal" style="z-index: 200;">
-        <div class="glass-panel" style="padding: 20px; text-align: center; max-width: 90vw; width: 400px;">
-            <h3 style="color: var(--primary); margin-top:0;" data-i18n="long_press_save">👇 長按圖片即可保存 👇</h3>
-            <img id="exportImgDisplay" src="" style="width: 100%; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-            <button class="btn btn-outline" style="margin-top: 15px; width: 100%;" onclick="document.getElementById('downloadModal').classList.add('hidden')" data-i18n="btn_cancel">關閉</button>
-        </div>
-    </div>
+    <canvas id="exportCanvas" class="hidden"></canvas>
 
     <footer class="app-footer">
         Copyright &copy; 2026 Gomensensei. All rights reserved.
