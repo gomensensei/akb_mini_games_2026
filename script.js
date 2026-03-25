@@ -284,8 +284,7 @@ const App = {
         return `${label} ${names}`;
     },
 
-    // 修復點：純粹繪製 Canvas，不干涉 DOM 結構
-    generateResultCanvas() {
+generateResultCanvas() {
         const canvas = document.createElement('canvas'); const scale = 3, w = 400, h = 600;
         canvas.width = w * scale; canvas.height = h * scale; const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
         
@@ -318,8 +317,17 @@ const App = {
         ];
         drawInfoGraphicText(ctx, w/2, h/2, texts);
         
+        // 🚀 防禦級檢查：確保 HTML 標籤存在才塞入圖片
         const previewImg = document.getElementById('resultCanvasPreview');
-        if (previewImg) previewImg.src = canvas.toDataURL('image/png');
+        if (previewImg) {
+            previewImg.src = canvas.toDataURL('image/png');
+        } else {
+            console.error("嚴重警告：找不到 <img id='resultCanvasPreview'> 標籤！");
+            alert("系統偵測到你的瀏覽器正在讀取「舊版的 index.html」！請強制重新整理網頁 (Ctrl+F5 或 清除手機瀏覽器快取) 來解決此問題。");
+            
+            // 就算出錯，都夾硬將圖片生出嚟俾你下載，保證唔會白玩
+            document.getElementById('view-result').innerHTML += `<img id="resultCanvasPreview" src="${canvas.toDataURL('image/png')}" style="width:100%; border-radius:24px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); margin-bottom: 20px;">`;
+        }
     },
 
     showFinalResult() {
