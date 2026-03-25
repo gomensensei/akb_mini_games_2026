@@ -65,6 +65,24 @@ function detectLang() {
     applyLang();
 }
 
+// 根據語言重新建立背景選擇選單
+function populateMemberSelector() {
+    const bgSel = document.getElementById('bgColorSelector');
+    if (!bgSel || membersDB.length === 0) return;
+    const currentVal = bgSel.value;
+    
+    bgSel.innerHTML = `<option value="auto" data-i18n="bg_auto">${langs[currentLang].bg_auto || '✨ 專屬應援色 (Auto)'}</option>`;
+    
+    membersDB.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = `🎨 ${getDisplayName(m)}`;
+        bgSel.appendChild(opt);
+    });
+    
+    bgSel.value = currentVal; // 保留使用者選擇
+}
+
 function applyLang() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
@@ -74,9 +92,14 @@ function applyLang() {
         const key = el.getAttribute('data-i18n-placeholder');
         if (langs[currentLang] && langs[currentLang][key]) el.placeholder = langs[currentLang][key];
     });
+    
     if (App.mode !== '' && document.getElementById('gameTitleHint')) {
         document.getElementById('gameTitleHint').textContent = `${getGameName(gameList.find(g=>g.id===App.queue[App.currentQIdx]))} - ${App.round}/${App.maxRounds}`;
     }
+    
+    populateMemberSelector(); // 切換語言時更新選單內的名字
+
+    // 若正在顯示結算畫面，即時重繪 Canvas 與按鈕文字
     if (!document.getElementById('view-result').classList.contains('hidden')) {
         App.generateResultCanvas();
         document.getElementById('btnShareText').textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
@@ -157,7 +180,9 @@ const App = {
 
     init() {
         detectLang();
+        populateMemberSelector(); // 初始化選單
         document.getElementById('btnHome').onclick = () => this.goHome();
+        
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('lb')) {
             try { leaderboard = JSON.parse(decodeURIComponent(escape(atob(urlParams.get('lb'))))); this.renderLeaderboard(); } catch(e) {}
@@ -194,6 +219,11 @@ const App = {
     startMode(mode, ids = []) {
         this.hideModal(); this.mode = mode; this.score = 0; this.currentQIdx = 0; document.getElementById('scoreDisplay').textContent = 0;
         this.queue = mode === 'classic' ? gameList.map(g=>g.id) : ids;
+        
+        // 每次開局重設為 Auto
+        const bgSel = document.getElementById('bgColorSelector');
+        if (bgSel) bgSel.value = 'auto';
+
         document.getElementById('view-dashboard').classList.add('hidden'); document.getElementById('view-game').classList.remove('hidden');
         document.getElementById('btnHome').classList.remove('hidden'); document.getElementById('globalTimerBar').classList.remove('hidden'); document.getElementById('gameTitleHint').classList.remove('hidden');
         this.loadNextGameInQueue();
@@ -264,29 +294,28 @@ const App = {
         return `${label} ${names}`;
     },
 
+    // 支援下拉選單抓取特定成員背景色
     generateResultCanvas() {
         const canvas = document.createElement('canvas'); const scale = 3, w = 400, h = 600;
         canvas.width = w * scale; canvas.height = h * scale; const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
         
         const bgVal = document.getElementById('bgColorSelector') ? document.getElementById('bgColorSelector').value : 'auto';
-        let isDark = false;
+        let targetColorMember = this.lastTarget;
+        if (bgVal !== 'auto') {
+            targetColorMember = membersDB.find(m => m.id === bgVal) || this.lastTarget;
+        }
 
         const grad = ctx.createLinearGradient(0,0,w,h); 
-        if (bgVal === 'auto' && this.lastTarget && this.lastTarget.c1) {
-            grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.5, hexToRgba(this.lastTarget.c1, 0.5)); grad.addColorStop(1, hexToRgba(this.lastTarget.c2, 0.6));
-        } else if (bgVal === 'blue') {
-            grad.addColorStop(0, '#E0F7FA'); grad.addColorStop(1, '#81D4FA');
-        } else if (bgVal === 'green') {
-            grad.addColorStop(0, '#E8F5E9'); grad.addColorStop(1, '#A5D6A7');
-        } else if (bgVal === 'dark') {
-            grad.addColorStop(0, '#263238'); grad.addColorStop(1, '#000000'); isDark = true;
+        if (targetColorMember && targetColorMember.c1) {
+            grad.addColorStop(0, '#ffffff'); 
+            grad.addColorStop(0.5, hexToRgba(targetColorMember.c1, 0.5));
+            grad.addColorStop(1, hexToRgba(targetColorMember.c2, 0.6));
         } else {
             grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
         }
         ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
         
-        ctx.fillStyle = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.85)';
-        ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
+        ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
         drawRoundRect(ctx, 20, 20, w-40, h-40, 20);
         ctx.shadowColor = 'transparent';
         
@@ -295,22 +324,24 @@ const App = {
         const modeName = modeStr.replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
         
         const pName = document.getElementById('playerName') ? document.getElementById('playerName').value.trim() : '';
-        const textColorMain = isDark ? '#FFFFFF' : '#2C3E50';
-        const textColorSec = isDark ? '#B0BEC5' : '#7F8C8D';
+        const txtTotalScore = langs[currentLang].total_score || "TOTAL SCORE";
+        const txtPlayerPrefix = langs[currentLang].player_prefix || "Player: ";
 
         const texts = [
-            { text: langs[currentLang].app_title, font: "bold 20px sans-serif", color: textColorSec, h: 20, gap: 30 },
+            { text: langs[currentLang].app_title, font: "bold 20px sans-serif", color: "#7F8C8D", h: 20, gap: 35 },
             { text: rank.badge, font: "60px sans-serif", color: "#000", h: 60, gap: 10 },
-            { text: langs[currentLang][rank.key], font: "900 36px sans-serif", color: "#FF4081", h: 36, gap: 5, shadow: "rgba(255,64,129,0.3)" },
-            { text: modeName, font: "bold 18px sans-serif", color: textColorMain, h: 18, gap: pName ? 10 : 15 }
+            { text: langs[currentLang][rank.key], font: "900 36px sans-serif", color: "#FF4081", h: 36, gap: 10, shadow: "rgba(255,64,129,0.3)" },
+            { text: modeName, font: "bold 18px sans-serif", color: "#2C3E50", h: 18, gap: pName ? 10 : 20 }
         ];
-        
-        if (pName) texts.push({ text: `Player: ${pName}`, font: "bold 18px sans-serif", color: "#4CAF50", h: 18, gap: 15 });
+
+        if (pName) {
+            texts.push({ text: `${txtPlayerPrefix}${pName}`, font: "bold 18px sans-serif", color: "#4CAF50", h: 18, gap: 15 });
+        }
         
         texts.push(
-            { text: this.getPlayedGamesStr(), font: "bold 12px sans-serif", color: textColorSec, h: 12, gap: 30, wrapWidth: 320 },
-            { text: "TOTAL SCORE", font: "bold 14px sans-serif", color: textColorSec, h: 14, gap: 5 },
-            { text: this.score.toString(), font: "900 48px sans-serif", color: textColorMain, h: 48, gap: 0 }
+            { text: this.getPlayedGamesStr(), font: "bold 12px sans-serif", color: "#7F8C8D", h: 12, gap: 35, wrapWidth: 320 },
+            { text: txtTotalScore, font: "bold 14px sans-serif", color: "#7F8C8D", h: 14, gap: 5 },
+            { text: this.score.toString(), font: "900 48px sans-serif", color: "#2C3E50", h: 48, gap: 0 }
         );
         
         drawInfoGraphicText(ctx, w/2, h/2, texts);
@@ -323,6 +354,10 @@ const App = {
             }
         }
         if (previewImg) previewImg.src = canvas.toDataURL('image/png');
+    },
+
+    updateResultView() {
+        this.generateResultCanvas();
     },
 
     showFinalResult() {
@@ -356,8 +391,8 @@ const App = {
 
     shareToX() {
         let shareUrl = window.location.href.split('?')[0];
-        const pName = document.getElementById('playerName').value.trim();
-        
+        const pName = document.getElementById('playerName') ? document.getElementById('playerName').value.trim() : '';
+
         if (this.mode === 'classic') {
             const name = pName || 'Anonymous';
             leaderboard.push({n:name, s:this.score});
@@ -368,8 +403,8 @@ const App = {
         const rank = this.calculateRank(), title = langs[currentLang][rank.key];
         const modeStr = langs[currentLang][`mode_${this.mode}`] || "";
         const modeName = modeStr.replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
-        
         const displayName = pName ? pName : (currentLang.startsWith('en') ? "I" : "我");
+
         let textTemplate = langs[currentLang][this.mode === 'classic' ? 'share_classic' : 'share_normal'];
         let text = textTemplate.replace('[NAME]', displayName).replace('[MODE]', modeName).replace('[TITLE]', title).replace('[SCORE]', this.score).replace('[URL]', shareUrl);
         
