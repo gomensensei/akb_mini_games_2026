@@ -77,15 +77,8 @@
     </main>
 
     <main id="view-result" class="hidden">
-        <div class="result-card glass-panel" id="resultCardNode">
-            <div class="result-badge" id="resBadge">👑</div>
-            <h2 class="result-title" id="resTitle">AKB 知識王</h2>
-            <div style="font-weight: 900; color: var(--text-main); margin-bottom: 5px; font-size: 1.1rem;" id="resModeLabel">經典挑戰</div>
-            <div class="played-games-list" id="resGamesList">本次試煉：對對碰, 排序</div>
-            <div class="result-score-wrap">
-                <div class="result-score-label">TOTAL SCORE</div>
-                <div class="result-score-val" id="resScoreVal">0</div>
-            </div>
+        <div class="canvas-preview-wrap">
+            <img id="resultCanvasPreview" src="">
         </div>
         <div class="social-panel">
             <input type="text" id="playerName" class="name-input hidden" maxlength="12" placeholder="輸入名字參與排行榜" data-i18n-placeholder="ph_name">
@@ -108,7 +101,13 @@
         </div>
     </div>
 
-    <canvas id="exportCanvas" class="hidden"></canvas>
+    <div class="modal-overlay flex-center hidden" id="downloadModal" style="z-index: 200;">
+        <div class="glass-panel" style="padding: 20px; text-align: center; max-width: 90vw; width: 400px;">
+            <h3 style="color: var(--primary); margin-top:0;" data-i18n="long_press_save">👇 長按圖片即可保存 👇</h3>
+            <img id="exportImgDisplay" src="" style="width: 100%; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
+            <button class="btn btn-outline" style="margin-top: 15px; width: 100%;" onclick="document.getElementById('downloadModal').classList.add('hidden')" data-i18n="btn_cancel">關閉</button>
+        </div>
+    </div>
 
     <footer class="app-footer">
         Copyright &copy; 2026 Gomensensei. All rights reserved.
