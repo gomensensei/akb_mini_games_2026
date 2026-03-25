@@ -82,10 +82,17 @@
         </div>
         
         <div class="social-panel">
-            <input type="text" id="playerName" class="name-input hidden" maxlength="12" placeholder="輸入名字參與排行榜" data-i18n-placeholder="ph_name">
+            <select id="bgColorSelector" class="name-input" style="margin-bottom: 8px; cursor: pointer;" onchange="App.generateResultCanvas()">
+                <option value="auto" data-i18n="bg_auto">✨ 專屬應援色 (Auto)</option>
+                <option value="pink" data-i18n="bg_pink">🌸 經典粉 (Pink)</option>
+                <option value="blue" data-i18n="bg_blue">🌊 海洋藍 (Blue)</option>
+                <option value="green" data-i18n="bg_green">🍃 薄荷綠 (Green)</option>
+                <option value="dark" data-i18n="bg_dark">🌌 夜空黑 (Dark)</option>
+            </select>
+            <input type="text" id="playerName" class="name-input hidden" maxlength="12" placeholder="輸入名字將印上戰績圖" data-i18n-placeholder="ph_name" oninput="App.generateResultCanvas()">
             <div class="row">
-                <button class="btn" style="flex: 1;" onclick="App.downloadResult()">📥 <span data-i18n="btn_dl">下載圖</span></button>
-                <button class="btn" style="flex: 1.5; background: #000;" onclick="App.shareToX()">𝕏 <span id="btnShareText" data-i18n="btn_share_lb">加入排行並分享</span></button>
+                <button class="btn" style="flex: 1;" onclick="App.downloadResult()">📥 <span data-i18n="btn_dl">下載</span></button>
+                <button class="btn" style="flex: 1; background: #000;" onclick="App.shareToX()">𝕏 <span id="btnShareText" data-i18n="btn_share_lb">排行並分享</span></button>
             </div>
             <button class="btn btn-outline" style="width: 100%;" onclick="App.goHome()">🏠 <span data-i18n="btn_back_home">回主選單</span></button>
         </div>
