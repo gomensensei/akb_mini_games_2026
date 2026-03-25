@@ -3,37 +3,57 @@ let langs = {};
 let currentLang = 'zh-HK';
 let leaderboard = [];
 
+// ==========================================
+// 資料清洗引擎 (完美兼容第三個網站格式，並提取應援色)
+// ==========================================
 function normalizeMembers(rawList) {
-    return rawList.map((m, index) => ({
-        id: m.id || String(index),
-        name_zh: m.name_zh_hk || m.name_zh_tw || m.name_zh_cn || m.name_zh || m.name_ja || "Unknown",
-        name_ja: m.name_ja || m.name || "Unknown",
-        name_en: m.name_en || m.name_romaji || m.name_ja || "Unknown",
-        genString: m.generation || m.ki_name || (m.ki ? m.ki + '期' : 'Unknown'),
-        genNum: parseFloat(m.genNum) || parseFloat(m.ki) || 99,
-        image: m.img_url || m.image || m.img || m.photo || "https://placehold.co/300x400/FFB6C1/FFF"
-    }));
+    return rawList.map((m, index) => {
+        // 應援色提取
+        let c1 = "#FF4081", c2 = "#FFB6C1";
+        if (m.colorData && m.colorData.length > 0) {
+            c1 = m.colorData[0].color;
+            c2 = m.colorData.length > 1 ? m.colorData[1].color : c1;
+        }
+        
+        return {
+            id: m.id || String(index),
+            name_ja: m.name_ja || m.name || "Unknown",
+            name_kana: m.name_kana || "", // 平假名注音
+            name_zh: m.name_zh_tw || m.name_zh_hk || m.name_zh_cn || m.name_zh || m.name_ja || "Unknown",
+            name_en: m.name_en || m.name_romaji || m.name_ja || "Unknown",
+            name_ko: m.name_ko || m.name_ja || "Unknown",
+            name_th: m.name_th || m.name_en || m.name_ja || "Unknown",
+            nickname: m.nickname || "",
+            genString: m.ki || m.generation || "Unknown",
+            genNum: parseFloat(m.genNum) || parseFloat(m.ki) || 99,
+            image: m.img_url || m.image || m.img || m.photo || "https://placehold.co/300x400/FFB6C1/FFF",
+            c1: c1,
+            c2: c2
+        };
+    });
 }
 
+// 非同步載入 JSON
 async function loadData() {
     try {
-        const mRes = await fetch('members.json');
-        const lRes = await fetch('langs.json');
+        const [mRes, lRes] = await Promise.all([
+            fetch('members.json'),
+            fetch('langs.json')
+        ]);
+        if (!mRes.ok || !lRes.ok) throw new Error("JSON files not found");
         
-        if (!mRes.ok || !lRes.ok) throw new Error("JSON 檔案無法讀取");
-        
-        const membersRaw = await mRes.json();
+        const mRaw = await mRes.json();
         langs = await lRes.json();
         
-        membersDB = normalizeMembers(membersRaw);
+        membersDB = normalizeMembers(mRaw);
         App.init();
     } catch (err) {
         console.error("Data Load Error:", err);
-        alert("Loading Error!" + err.message);
+        alert("載入資料失敗！請確保 members.json 和 langs.json 存在於正確目錄，並且使用伺服器環境運行。");
     }
 }
 
-// 遊戲清單，文字已剝離，只保留 ID 與參數
+// 遊戲清單與參數
 const gameList = [
     { id: 'mem', baseTime: 40000 },
     { id: 'sort', baseTime: 15000 },
@@ -44,11 +64,15 @@ const gameList = [
     { id: 'puz', baseTime: 25000 }
 ];
 
+// 語言判斷
 function detectLang() {
     const nav = navigator.language.toLowerCase();
     if (nav.includes('tw') || nav.includes('hant')) currentLang = 'zh-TW';
     else if (nav.includes('cn') || nav.includes('hans')) currentLang = 'zh-CN';
     else if (nav.startsWith('ja')) currentLang = 'ja';
+    else if (nav.startsWith('ko')) currentLang = 'ko';
+    else if (nav.startsWith('th')) currentLang = 'th';
+    else if (nav.startsWith('id')) currentLang = 'id';
     else if (nav.startsWith('en')) currentLang = 'en';
     else currentLang = 'zh-HK';
     document.getElementById('langSelector').value = currentLang;
@@ -65,19 +89,32 @@ function applyLang() {
         if (langs[currentLang] && langs[currentLang][key]) el.placeholder = langs[currentLang][key];
     });
     
-    // 如果正在顯示遊戲標題，即時更新
+    // 即時更新標題
     if (App.mode !== '' && document.getElementById('gameTitleHint')) {
         document.getElementById('gameTitleHint').textContent = `${getGameName(gameList.find(g=>g.id===App.queue[App.currentQIdx]))} - ${App.round}/${App.maxRounds}`;
     }
-    
+    // 結算畫面即時更新
     if (!document.getElementById('view-result').classList.contains('hidden')) {
-        App.generateResultCanvas();
-        document.getElementById('btnShareText').textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
+        App.updateResultView();
     }
 }
 
-function getName(member) { return currentLang === 'ja' ? member.name_ja : currentLang === 'en' ? member.name_en : member.name_zh; }
-// 改為從 langs 物件讀取遊戲名稱
+// 獲取成員姓名邏輯 (目標 3)
+function getDisplayName(member) {
+    if (['zh-HK', 'zh-TW', 'zh-CN', 'ja'].includes(currentLang)) return member.name_ja;
+    if (currentLang === 'ko') return member.name_ko;
+    if (currentLang === 'th') return member.name_th;
+    return member.name_en; 
+}
+
+// 獲取包含注音 (Ruby) 的 HTML (目標 4)
+function getRubyNameHTML(member) {
+    if (['zh-HK', 'zh-TW', 'zh-CN', 'ja'].includes(currentLang) && member.name_kana) {
+        return `<ruby>${member.name_ja}<rt>${member.name_kana}</rt></ruby>`;
+    }
+    return getDisplayName(member);
+}
+
 function getGameName(g) { return langs[currentLang] ? langs[currentLang]['gn_' + g.id] : g.id; }
 function getShortName(g) { return langs[currentLang] ? langs[currentLang]['gs_' + g.id] : g.id; }
 function getGenDisplay(member) { return member.genString; }
@@ -85,33 +122,19 @@ function getGenDisplay(member) { return member.genString; }
 document.getElementById('langSelector').addEventListener('change', (e) => { currentLang = e.target.value; applyLang(); });
 
 function shuffle(arr) { let a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function triggerConfetti() { confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#FF1493', '#4CAF50', '#00FFFF'], zIndex: 9999 }); }
 
-function drawInfoGraphicText(ctx, startX, startY, textArray) {
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    const totalHeight = textArray.reduce((sum, el) => sum + el.h + el.gap, 0);
-    let currentY = startY - (totalHeight / 2);
-    textArray.forEach(el => {
-        ctx.font = el.font; ctx.fillStyle = el.color;
-        if(el.shadow) { ctx.shadowColor = el.shadow; ctx.shadowBlur = 10; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 4; } else { ctx.shadowColor = 'transparent'; }
-        if (el.wrapWidth) {
-            const words = el.text.split(' '); let line = ''; let yOff = 0;
-            for(let i=0; i<words.length; i++) {
-                let testLine = line + words[i] + ' ';
-                if(ctx.measureText(testLine).width > el.wrapWidth && i > 0) {
-                    ctx.fillText(line, startX, currentY + yOff); line = words[i] + ' '; yOff += el.h + 5;
-                } else { line = testLine; }
-            }
-            ctx.fillText(line, startX, currentY + yOff); currentY += el.h + el.gap + yOff;
-        } else { ctx.fillText(el.text, startX, currentY); currentY += el.h + el.gap; }
-    });
-    ctx.shadowColor = 'transparent';
+// 取消原本的碎紙機，統一由主程式控制
+function triggerConfetti() { 
+    if (App.mode === 'challenge') return; // 極限生存取消禮炮以提速
+    confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#FF1493', '#4CAF50', '#00FFFF'], zIndex: 9999 }); 
 }
 
+// App 主程式
 const App = {
     mode: '', queue: [], currentQIdx: 0, round: 0, maxRounds: 5, score: 0,
     activeGame: null, animFrame: null, timerStart: 0, timeLimit: 0, difficulty: 1,
     delayTimeout: null,
+    lastTarget: null, // 用於儲存最後一位目標成員，以便提取應援色 (目標 1)
 
     init() {
         detectLang();
@@ -139,13 +162,11 @@ const App = {
         document.getElementById('view-dashboard').classList.add('dashboard-blurred');
         const title = document.getElementById('modalTitle'), content = document.getElementById('modalContent');
         content.innerHTML = ''; title.textContent = langs[currentLang][`mode_${mode}`];
-        
         if (mode === 'custom') {
             gameList.forEach(g => content.innerHTML += `<label style="display:flex;gap:10px;padding:8px;"><input type="checkbox" class="gCheck" value="${g.id}" checked><b>${getGameName(g)}</b></label>`);
         } else {
             gameList.forEach((g,i) => content.innerHTML += `<label style="display:flex;gap:10px;padding:8px;"><input type="radio" name="gSel" value="${g.id}" ${i===0?'checked':''}><b>${getGameName(g)}</b></label>`);
         }
-        
         document.getElementById('modalConfirmBtn').onclick = () => {
             let ids = mode==='custom' ? Array.from(document.querySelectorAll('.gCheck:checked')).map(c=>c.value) : [document.querySelector('input[name="gSel"]:checked').value];
             if(ids.length) this.startMode(mode, ids);
@@ -176,30 +197,29 @@ const App = {
     },
 
     nextRound() {
-        if (this.mode === '') return; 
+        if (this.mode === '') return;
         if (this.round >= this.maxRounds) { this.currentQIdx++; this.loadNextGameInQueue(); return; }
-        this.round++; document.getElementById('gameTitleHint').textContent = `${getGameName(gameList.find(g=>g.id===this.queue[this.currentQIdx]))} - ${this.round}/${this.maxRounds}`;
-        
+        this.round++;
+        document.getElementById('gameTitleHint').textContent = `${getGameName(gameList.find(g=>g.id===this.queue[this.currentQIdx]))} - ${this.round}/${this.maxRounds}`;
         if (this.mode === 'challenge') {
             this.difficulty = Math.min(1 + (this.round * 0.1), 5);
             const baseT = gameList.find(g=>g.id===this.queue[this.currentQIdx]).baseTime;
             this.timeLimit = Math.max(baseT * (1 - this.round * 0.02), baseT * 0.2);
         } else { this.difficulty = 1; this.timeLimit = gameList.find(g=>g.id===this.queue[this.currentQIdx]).baseTime; }
-        
-        this.activeGame.setup(); setTimeout(() => this.startTimer(), 400);
+        this.activeGame.setup();
+        setTimeout(() => this.startTimer(), 400);
     },
 
     startTimer() {
         if(this.mode === '') return;
         this.timerStart = performance.now(); this.activeGame.isActive = true;
         const tf = document.getElementById('globalTimerFill'); tf.parentElement.classList.remove('timer-danger');
-        
         const loop = () => {
             if (!this.activeGame.isActive) return;
             const p = (performance.now() - this.timerStart) / this.timeLimit;
             if (p >= 1) { tf.style.transform = `scaleX(0)`; this.activeGame.onTimeOut(); return; }
             tf.style.transform = `scaleX(${1 - p})`;
-            if (p > 0.7) tf.parentElement.classList.add('timer-danger');
+            if (p > 0.7) tf.parentElement.classList.add('timer-danger'); else tf.parentElement.classList.remove('timer-danger');
             if (this.activeGame.onFrame) this.activeGame.onFrame(p);
             this.animFrame = requestAnimationFrame(loop);
         };
@@ -207,10 +227,12 @@ const App = {
     },
 
     addScore(base, ratio) { this.score += Math.floor(base * this.difficulty * (1 + ratio)); document.getElementById('scoreDisplay').textContent = this.score; },
+
     getDelay(baseMs) { return this.mode === 'challenge' ? Math.max(baseMs * 0.3, 400) : baseMs; },
 
     roundEndDelay(ms = 1500) {
-        this.activeGame.isActive = false; cancelAnimationFrame(this.animFrame); document.getElementById('globalTimerFill').style.transform = `scaleX(0)`;
+        this.activeGame.isActive = false; cancelAnimationFrame(this.animFrame);
+        document.getElementById('globalTimerFill').style.transform = `scaleX(0)`;
         this.delayTimeout = setTimeout(() => this.nextRound(), this.getDelay(ms));
     },
 
@@ -232,34 +254,77 @@ const App = {
         return `${label} ${names}`;
     },
 
+    // 繪製包含應援色漸變的 Canvas
     generateResultCanvas() {
         const canvas = document.createElement('canvas'); const scale = 3, w = 400, h = 600;
         canvas.width = w * scale; canvas.height = h * scale; const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
         
-        const grad = ctx.createLinearGradient(0,0,w,h); grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
+        // 應援色背景 (如果沒有則使用預設粉藍)
+        const grad = ctx.createLinearGradient(0,0,w,h); 
+        if (this.lastTarget) {
+            grad.addColorStop(0, '#ffffff'); 
+            grad.addColorStop(0.5, this.lastTarget.c1 + '80'); // 加 80 透明度
+            grad.addColorStop(1, this.lastTarget.c2 + '90');
+        } else {
+            grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
+        }
         ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
-        ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
+        
+        ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
         ctx.beginPath(); ctx.roundRect(20,20,w-40,h-40,20); ctx.fill(); ctx.shadowColor = 'transparent';
         
         const rank = this.calculateRank();
         const modeName = langs[currentLang][`mode_${this.mode}`].replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
         
         const texts = [
-            { text: langs[currentLang].app_title, font: "bold 20px 'Noto Sans JP'", color: "#7F8C8D", h: 20, gap: 40 },
-            { text: rank.badge, font: "60px 'Noto Sans JP'", color: "#000", h: 60, gap: 15 },
-            { text: langs[currentLang][rank.key], font: "900 36px 'Noto Sans JP'", color: "#FF4081", h: 36, gap: 10, shadow: "rgba(255,64,129,0.3)" },
-            { text: modeName, font: "bold 18px 'Noto Sans JP'", color: "#2C3E50", h: 18, gap: 15 },
-            { text: this.getPlayedGamesStr(), font: "bold 12px 'Noto Sans JP'", color: "#7F8C8D", h: 12, gap: 40, wrapWidth: 320 },
-            { text: "TOTAL SCORE", font: "bold 14px 'Noto Sans JP'", color: "#7F8C8D", h: 14, gap: 5 },
-            { text: this.score.toString(), font: "900 48px 'Noto Sans JP'", color: "#2C3E50", h: 48, gap: 0 }
+            { text: langs[currentLang].app_title, font: "bold 20px sans-serif", color: "#7F8C8D", h: 20, gap: 40 },
+            { text: rank.badge, font: "60px sans-serif", color: "#000", h: 60, gap: 15 },
+            { text: langs[currentLang][rank.key], font: "900 36px sans-serif", color: "#FF4081", h: 36, gap: 10, shadow: "rgba(255,64,129,0.3)" },
+            { text: modeName, font: "bold 18px sans-serif", color: "#2C3E50", h: 18, gap: 15 },
+            { text: this.getPlayedGamesStr(), font: "bold 12px sans-serif", color: "#7F8C8D", h: 12, gap: 40, wrapWidth: 320 },
+            { text: "TOTAL SCORE", font: "bold 14px sans-serif", color: "#7F8C8D", h: 14, gap: 5 },
+            { text: this.score.toString(), font: "900 48px sans-serif", color: "#2C3E50", h: 48, gap: 0 }
         ];
-        drawInfoGraphicText(ctx, w/2, h/2, texts);
+        
+        // Canvas 無法畫 <ruby>，所以這裡用 getDisplayName (去掉了 html 標籤)
+        
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        let currentY = (h / 2) - (texts.reduce((sum, el) => sum + el.h + el.gap, 0) / 2);
+        texts.forEach(el => {
+            ctx.font = el.font; ctx.fillStyle = el.color;
+            if(el.shadow) { ctx.shadowColor = el.shadow; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4; } else { ctx.shadowColor = 'transparent'; }
+            if (el.wrapWidth) {
+                const words = el.text.split(' '); let line = ''; let yOff = 0;
+                for(let i=0; i<words.length; i++) {
+                    let testLine = line + words[i] + ' ';
+                    if(ctx.measureText(testLine).width > el.wrapWidth && i > 0) { ctx.fillText(line, w/2, currentY + yOff); line = words[i] + ' '; yOff += el.h + 5; } else { line = testLine; }
+                }
+                ctx.fillText(line, w/2, currentY + yOff); currentY += el.h + el.gap + yOff;
+            } else { ctx.fillText(el.text, w/2, currentY); currentY += el.h + el.gap; }
+        });
         document.getElementById('resultCanvasPreview').src = canvas.toDataURL('image/png');
+    },
+
+    updateResultView() {
+        const rank = this.calculateRank();
+        const modeName = langs[currentLang][`mode_${this.mode}`].replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
+        document.getElementById('resBadge').textContent = rank.badge;
+        document.getElementById('resTitle').textContent = langs[currentLang][rank.key];
+        document.getElementById('resModeLabel').textContent = modeName;
+        document.getElementById('resGamesList').textContent = this.getPlayedGamesStr();
+        document.getElementById('resScoreVal').textContent = this.score;
+
+        // 如果有 target，將 Result HTML Card 加上漸變背景
+        if (this.lastTarget) {
+            const rc = document.getElementById('resultCardNode');
+            rc.style.background = `linear-gradient(135deg, rgba(255,255,255,0.95), ${this.lastTarget.c1}30, ${this.lastTarget.c2}50)`;
+        }
+        this.generateResultCanvas();
     },
 
     showFinalResult() {
         if(this.mode === '') return;
-        this.generateResultCanvas();
+        this.updateResultView();
         
         if (this.mode === 'classic') {
             document.getElementById('playerName').classList.remove('hidden');
@@ -273,13 +338,13 @@ const App = {
         document.getElementById('globalTimerBar').classList.add('hidden');
         document.getElementById('gameTitleHint').classList.add('hidden');
         document.getElementById('view-result').classList.remove('hidden');
-        triggerConfetti(); setTimeout(triggerConfetti, 500); setTimeout(triggerConfetti, 1000);
+        triggerConfetti();
     },
 
     downloadResult() {
         try {
             const link = document.createElement('a'); link.download = `AKB48_FanQuest_${this.score}.png`;
-            link.href = document.getElementById('resultCanvasPreview').src; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            link.href = document.getElementById('resultCanvasPreview').src; link.click();
         } catch(e) {
             document.getElementById('exportImgDisplay').src = document.getElementById('resultCanvasPreview').src;
             document.getElementById('downloadModal').classList.remove('hidden');
@@ -291,29 +356,32 @@ const App = {
         if (this.mode === 'classic') {
             const name = document.getElementById('playerName').value.trim() || 'Anonymous';
             leaderboard.push({n:name, s:this.score});
-            const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(leaderboard.sort((a,b)=>b.s-a.s).slice(0, 10)))));
+            const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(leaderboard.sort((a,b)=>b.s-a.s).slice(0,10)))));
             shareUrl += '?lb=' + b64;
         }
-        
         const rank = this.calculateRank(), title = langs[currentLang][rank.key];
         const modeName = langs[currentLang][`mode_${this.mode}`].replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
-        
-        // 替換佔位符
         let textTemplate = langs[currentLang][this.mode === 'classic' ? 'share_classic' : 'share_normal'];
         let text = textTemplate.replace('[MODE]', modeName).replace('[TITLE]', title).replace('[SCORE]', this.score).replace('[URL]', shareUrl);
-        
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
     },
 
     goHome() {
-        this.mode = ''; clearTimeout(this.delayTimeout); 
-        if(this.activeGame) this.activeGame.isActive = false; cancelAnimationFrame(this.animFrame);
-        document.getElementById('view-game').classList.add('hidden'); document.getElementById('view-result').classList.add('hidden');
-        document.getElementById('globalTimerBar').classList.add('hidden'); document.getElementById('btnHome').classList.add('hidden'); document.getElementById('gameTitleHint').classList.add('hidden');
-        document.getElementById('view-dashboard').classList.remove('hidden'); document.getElementById('view-dashboard').classList.remove('dashboard-blurred');
+        this.mode = ''; clearTimeout(this.delayTimeout); cancelAnimationFrame(this.animFrame);
+        if(this.activeGame) this.activeGame.isActive = false;
+        document.getElementById('view-game').classList.add('hidden');
+        document.getElementById('view-result').classList.add('hidden');
+        document.getElementById('globalTimerBar').classList.add('hidden');
+        document.getElementById('btnHome').classList.add('hidden');
+        document.getElementById('gameTitleHint').classList.add('hidden');
+        document.getElementById('view-dashboard').classList.remove('hidden');
+        document.getElementById('view-dashboard').classList.remove('dashboard-blurred');
     }
 };
 
+// ==========================================
+// 遊戲邏輯實作
+// ==========================================
 const Games = {
     mem: {
         isActive: false, pairs: 0, flipped: [], lock: false,
@@ -322,7 +390,8 @@ const Games = {
             let m = shuffle(membersDB).slice(0, 8); let cards = shuffle([...m, ...m]);
             cards.forEach(mem => {
                 const el = document.createElement('div'); el.className = 'mem-card'; el.dataset.id = mem.id;
-                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'"><div class="mem-name">${getName(mem)}</div></div></div>`;
+                // 添加 Nickname 與 Ruby
+                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}"><div class="mem-name">${getRubyNameHTML(mem)}<div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
                 el.onclick = () => {
                     if(!this.isActive || this.lock || el.classList.contains('flipped') || el.classList.contains('matched')) return;
                     el.classList.add('flipped'); this.flipped.push(el);
@@ -332,7 +401,7 @@ const Games = {
                             this.pairs++;
                             setTimeout(() => { 
                                 this.flipped.forEach(f=>f.classList.add('matched')); this.flipped=[]; this.lock=false; 
-                                if(this.pairs===8) { App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(1500); }
+                                if(this.pairs===8) { App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); App.roundEndDelay(1500); }
                             }, App.getDelay(500));
                         } else { setTimeout(() => { this.flipped.forEach(f=>f.classList.remove('flipped')); this.flipped=[]; this.lock=false; }, App.getDelay(1000)); }
                     }
@@ -347,18 +416,21 @@ const Games = {
             const c = document.getElementById('container-sort'); c.innerHTML = ''; this.picks = [];
             let pool = shuffle(membersDB), opts = [], used = new Set();
             for(let m of pool) { if(!used.has(m.genNum)) { opts.push(m); used.add(m.genNum); } if(opts.length===4) break; }
-            this.correctIds = [...opts].sort((a,b)=>a.genNum - b.genNum).map(m=>m.id);
+            this.correctIds = [...opts].sort((a,b)=>a.genNum-b.genNum).map(m=>m.id);
+            App.lastTarget = opts.find(m => m.id === this.correctIds[0]); // Senpai 為目標
+
             shuffle(opts).forEach(m => {
-                const el = document.createElement('div'); el.className = 'sort-card'; el.innerHTML = `<div class="sort-badge"></div><img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'"><div class="sort-gen">${getGenDisplay(m)}</div>`;
+                const el = document.createElement('div'); el.className = 'sort-card'; el.dataset.id = m.id;
+                el.innerHTML = `<div class="sort-badge"></div><img src="${m.image}"><div class="sort-gen">${getGenDisplay(m)}</div><div class="sort-name">${getRubyNameHTML(m)}</div>`;
                 el.onclick = () => {
                     if(!this.isActive) return; el.classList.toggle('selected');
                     if(el.classList.contains('selected')) this.picks.push(m.id); else this.picks.splice(this.picks.indexOf(m.id),1);
-                    c.querySelectorAll('.sort-card.selected').forEach(x=>x.querySelector('.sort-badge').textContent = this.picks.indexOf(x.querySelector('img').src.includes(m.image)?m.id:'') + 1);
+                    c.querySelectorAll('.sort-card.selected').forEach(x=>x.querySelector('.sort-badge').textContent = this.picks.indexOf(x.dataset.id) + 1);
                     if(this.picks.length===4) {
                         this.isActive = false; 
                         if(this.picks.every((id,i)=>id===this.correctIds[i])) { 
-                            c.querySelectorAll('.sort-card').forEach(x=>{x.classList.add('correct','revealed'); x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.querySelector('img').src.includes(m.image)?m.id:'')+1;});
-                            App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(2000); 
+                            c.querySelectorAll('.sort-card').forEach(x=>{x.classList.add('correct','revealed'); x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;});
+                            App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); App.roundEndDelay(2000); 
                         } else { 
                             c.classList.add('shake'); c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('wrong')); App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
                             setTimeout(()=>{c.classList.remove('shake'); c.querySelectorAll('.sort-card').forEach(x=>{x.classList.remove('wrong','selected'); x.querySelector('.sort-badge').textContent='';}); this.picks=[]; this.isActive=true;}, App.getDelay(800));
@@ -374,22 +446,29 @@ const Games = {
         setup() {
             const c = document.getElementById('container-find'); c.innerHTML = ''; c.classList.remove('dimmed'); this.nodes = [];
             this.target = membersDB[Math.floor(Math.random()*membersDB.length)];
-            document.getElementById('gameTitleHint').innerHTML = `${langs[currentLang].find_hint} <span style="color:#2196F3">${getName(this.target)}</span>`;
+            App.lastTarget = this.target; // 紀錄目標
+            
+            // 提示包含 Nickname
+            const hintName = getRubyNameHTML(this.target) + (this.target.nickname ? ` (${this.target.nickname})` : "");
+            document.getElementById('gameTitleHint').innerHTML = `${langs[currentLang].find_hint} <span style="color:#2196F3">${hintName}</span>`;
+            
             let pool = [this.target]; while(pool.length<20) pool.push(membersDB[Math.floor(Math.random()*membersDB.length)]);
             const rect = c.getBoundingClientRect() || {width:300, height:300}; 
             const ns = window.innerWidth > 768 ? 90 : 65; 
+            
             shuffle(pool).forEach(m => {
                 const el = document.createElement('div'); el.className = 'fly-node'; el.style.width=el.style.height=ns+'px';
-                el.innerHTML = `<img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'">`; 
+                el.innerHTML = `<img src="${m.image}">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
-                let s = (Math.random()*1.0 + 0.3) * (window.innerWidth>768 ? 0.6 : 0.8) * App.difficulty;
+                let s = (Math.random()*1.0 + 0.3) * (window.innerWidth>768 ? 0.4 : 0.8) * App.difficulty;
                 el.style.transform = `translate(${x}px, ${y}px)`;
                 el.onclick = (e) => {
                     e.stopPropagation(); if(!this.isActive) return; 
                     if(m.id===this.target.id) { 
                         this.isActive=false; el.classList.add('correct'); c.classList.add('dimmed'); 
                         el.style.transform = `translate(${rect.width/2 - ns/2}px, ${rect.height/2 - ns/2}px) scale(2)`;
-                        App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(2500); 
+                        el.style.boxShadow = `0 0 40px ${this.target.c1}, inset 0 0 20px ${this.target.c2}`;
+                        App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); App.roundEndDelay(2500); 
                     } else { App.score = Math.max(0, App.score-50); document.getElementById('scoreDisplay').textContent=App.score; el.style.borderColor='red'; setTimeout(()=>el.style.borderColor='#fff', 300); }
                 }; c.appendChild(el); this.nodes.push({el, x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, size:ns});
             });
@@ -405,32 +484,36 @@ const Games = {
         setup() {
             const img = document.getElementById('macroImg'), opts = document.getElementById('macroOpts'); opts.innerHTML = ''; img.style.transition = 'none';
             let pool = shuffle(membersDB).slice(0,4); this.target = pool[0]; pool = shuffle(pool); img.src = this.target.image;
+            App.lastTarget = this.target;
             this.zoom = 5 + (App.difficulty * 1.5); this.px = (Math.random()*60-30); this.py = (Math.random()*60-30);
             img.style.transform = `scale(${this.zoom}) translate(${this.px}%, ${this.py}%)`;
             pool.forEach(m => {
-                const b = document.createElement('button'); b.className = 'opt-btn'; b.textContent = getName(m);
+                const b = document.createElement('button'); b.className = 'opt-btn'; b.innerHTML = getRubyNameHTML(m);
                 b.onclick = () => { 
                     if(!this.isActive) return; this.isActive=false; 
                     img.style.transition = `transform ${App.getDelay(600)}ms ease`; img.style.transform='scale(1) translate(0,0)'; 
-                    if(m.id===this.target.id) { b.classList.add('correct'); App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); } 
-                    else { b.classList.add('wrong'); Array.from(opts.children).find(x=>x.textContent===getName(this.target)).classList.add('correct'); }
+                    if(m.id===this.target.id) { b.classList.add('correct'); App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); } 
+                    else { b.classList.add('wrong'); Array.from(opts.children).find(x=>x.innerHTML.includes(getDisplayName(this.target))).classList.add('correct'); }
                     App.roundEndDelay(2500); 
                 }; opts.appendChild(b);
             });
         }, 
         onFrame(p) { document.getElementById('macroImg').style.transform = `scale(${this.zoom - ((this.zoom-1)*p)}) translate(${this.px*(1-p)}%, ${this.py*(1-p)}%)`; },
-        onTimeOut() { document.getElementById('macroImg').style.transition = `transform ${App.getDelay(600)}ms ease`; document.getElementById('macroImg').style.transform = 'scale(1)'; Array.from(document.getElementById('macroOpts').children).find(x=>x.textContent===getName(this.target)).classList.add('correct'); App.roundEndDelay(2000); }
+        onTimeOut() { document.getElementById('macroImg').style.transition = `transform ${App.getDelay(600)}ms ease`; document.getElementById('macroImg').style.transform = 'scale(1)'; Array.from(document.getElementById('macroOpts').children).find(x=>x.innerHTML.includes(getDisplayName(this.target))).classList.add('correct'); App.roundEndDelay(2000); }
     },
     duel: {
         isActive: false, setup() {
             const c = document.getElementById('container-duel'); c.innerHTML = '<div class="duel-vs">VS</div>';
             let m1 = membersDB[Math.floor(Math.random()*membersDB.length)], m2;
             do { m2 = membersDB[Math.floor(Math.random()*membersDB.length)]; } while(m1.genNum === m2.genNum);
+            App.lastTarget = m1.genNum < m2.genNum ? m1 : m2;
+
             [m1, m2].forEach((m, i) => {
-                const el = document.createElement('div'); el.className = 'duel-card'; el.innerHTML = `<img src="${m.image}"><div class="duel-gen">${getGenDisplay(m)}</div>`;
+                const el = document.createElement('div'); el.className = 'duel-card'; el.id = `duel${i}`;
+                el.innerHTML = `<img src="${m.image}"><div class="duel-gen">${getGenDisplay(m)}</div><div class="duel-name">${getRubyNameHTML(m)}</div>`;
                 el.onclick = () => {
                     if(!this.isActive) return; this.isActive=false; c.querySelectorAll('.duel-card').forEach(x=>x.classList.add('revealed')); 
-                    if((i===0&&m1.genNum<m2.genNum)||(i===1&&m2.genNum<m1.genNum)) { el.classList.add('correct'); App.addScore(600, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); }
+                    if((i===0&&m1.genNum<m2.genNum)||(i===1&&m2.genNum<m1.genNum)) { el.classList.add('correct'); App.addScore(600, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); }
                     else { el.classList.add('wrong'); c.style.animation='shake 0.4s'; document.getElementById(`duel${i===0?1:0}`).classList.add('correct'); }
                     App.roundEndDelay(1500);
                 }; c.appendChild(el);
@@ -443,6 +526,8 @@ const Games = {
             const view = document.getElementById('smileView'), opts = document.getElementById('smileOpts'); opts.innerHTML = '';
             view.classList.remove('revealed'); let pool = shuffle(membersDB).slice(0,4); this.target = pool[0];
             document.getElementById('smileSharp').src = this.target.image;
+            App.lastTarget = this.target;
+
             this.baseMask = Math.max(50 - (App.difficulty * 5), 25);
             this.mx = 30+Math.random()*40; this.my = 30+Math.random()*40;
             this.vx = (Math.random()-0.5)*1.2; this.vy = (Math.random()-0.5)*1.2;
@@ -450,11 +535,11 @@ const Games = {
             view.style.setProperty('--mask-size', `${this.baseMask}px`);
 
             shuffle(pool).forEach(m => {
-                const b = document.createElement('button'); b.className = 'opt-btn'; b.textContent = getName(m);
+                const b = document.createElement('button'); b.className = 'opt-btn'; b.innerHTML = getRubyNameHTML(m);
                 b.onclick = () => { 
                     if(!this.isActive) return; this.isActive=false; view.classList.add('revealed'); 
-                    if(m.id===this.target.id) { b.classList.add('correct'); App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); } 
-                    else { b.classList.add('wrong'); Array.from(opts.children).find(x=>x.textContent===getName(this.target)).classList.add('correct'); }
+                    if(m.id===this.target.id) { b.classList.add('correct'); App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); } 
+                    else { b.classList.add('wrong'); Array.from(opts.children).find(x=>x.innerHTML.includes(getDisplayName(this.target))).classList.add('correct'); }
                     App.roundEndDelay(2500); 
                 }; opts.appendChild(b);
             });
@@ -464,7 +549,7 @@ const Games = {
             const v = document.getElementById('smileView'); v.style.setProperty('--mask-x', this.mx+'%'); v.style.setProperty('--mask-y', this.my+'%');
             v.style.setProperty('--mask-size', `${this.baseMask * (1 - (p * 0.3))}px`);
         }, 
-        onTimeOut() { document.getElementById('smileView').classList.add('revealed'); Array.from(document.getElementById('smileOpts').children).find(x=>x.textContent===getName(this.target)).classList.add('correct'); App.roundEndDelay(2000); }
+        onTimeOut() { document.getElementById('smileView').classList.add('revealed'); Array.from(document.getElementById('smileOpts').children).find(x=>x.innerHTML.includes(getDisplayName(this.target))).classList.add('correct'); App.roundEndDelay(2000); }
     },
     puz: {
         isActive: false, state: [], sel: null, target: null,
@@ -472,6 +557,8 @@ const Games = {
             const c = document.getElementById('puzGrid'); Array.from(c.children).forEach(x=>{if(x.id!=='puzOverlay') x.remove();}); 
             document.getElementById('puzOverlay').style.opacity = 0;
             this.target = membersDB[Math.floor(Math.random()*membersDB.length)]; document.getElementById('puzOverlay').src = this.target.image; this.state = []; this.sel = null;
+            App.lastTarget = this.target;
+
             for(let i=0; i<9; i++) this.state.push({id:i, pos:i, rot:Math.floor(Math.random()*4)});
             for(let i=8; i>0; i--) { const j=Math.floor(Math.random()*(i+1)); [this.state[i].pos, this.state[j].pos] = [this.state[j].pos, this.state[i].pos]; }
             if(this.state.every(p=>p.id===p.pos && p.rot===0)) this.state[0].rot = 1; this.render();
@@ -487,7 +574,7 @@ const Games = {
                 }; c.insertBefore(el, document.getElementById('puzOverlay'));
             }
         },
-        check() { if(this.state.every(p=>p.id===p.pos && p.rot===0)) { this.isActive=false; document.getElementById('puzOverlay').style.opacity = 1; App.addScore(1200, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(2500); } },
+        check() { if(this.state.every(p=>p.id===p.pos && p.rot===0)) { this.isActive=false; document.getElementById('puzOverlay').style.opacity = 1; App.addScore(1200, 1-(performance.now()-App.timerStart)/App.timeLimit); triggerConfetti(); App.roundEndDelay(2500); } },
         onTimeOut() { document.getElementById('puzOverlay').style.opacity = 1; App.roundEndDelay(2000); }
     }
 };
