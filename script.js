@@ -268,17 +268,25 @@ const App = {
         const canvas = document.createElement('canvas'); const scale = 3, w = 400, h = 600;
         canvas.width = w * scale; canvas.height = h * scale; const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
         
+        const bgVal = document.getElementById('bgColorSelector') ? document.getElementById('bgColorSelector').value : 'auto';
+        let isDark = false;
+
         const grad = ctx.createLinearGradient(0,0,w,h); 
-        if (this.lastTarget && this.lastTarget.c1) {
-            grad.addColorStop(0, '#ffffff'); 
-            grad.addColorStop(0.5, hexToRgba(this.lastTarget.c1, 0.5));
-            grad.addColorStop(1, hexToRgba(this.lastTarget.c2, 0.6));
+        if (bgVal === 'auto' && this.lastTarget && this.lastTarget.c1) {
+            grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.5, hexToRgba(this.lastTarget.c1, 0.5)); grad.addColorStop(1, hexToRgba(this.lastTarget.c2, 0.6));
+        } else if (bgVal === 'blue') {
+            grad.addColorStop(0, '#E0F7FA'); grad.addColorStop(1, '#81D4FA');
+        } else if (bgVal === 'green') {
+            grad.addColorStop(0, '#E8F5E9'); grad.addColorStop(1, '#A5D6A7');
+        } else if (bgVal === 'dark') {
+            grad.addColorStop(0, '#263238'); grad.addColorStop(1, '#000000'); isDark = true;
         } else {
             grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
         }
         ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
         
-        ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
+        ctx.fillStyle = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.85)';
+        ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
         drawRoundRect(ctx, 20, 20, w-40, h-40, 20);
         ctx.shadowColor = 'transparent';
         
@@ -286,33 +294,35 @@ const App = {
         const modeStr = langs[currentLang][`mode_${this.mode}`] || "";
         const modeName = modeStr.replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
         
+        const pName = document.getElementById('playerName') ? document.getElementById('playerName').value.trim() : '';
+        const textColorMain = isDark ? '#FFFFFF' : '#2C3E50';
+        const textColorSec = isDark ? '#B0BEC5' : '#7F8C8D';
+
         const texts = [
-            { text: langs[currentLang].app_title, font: "bold 20px sans-serif", color: "#7F8C8D", h: 20, gap: 40 },
-            { text: rank.badge, font: "60px sans-serif", color: "#000", h: 60, gap: 15 },
-            { text: langs[currentLang][rank.key], font: "900 36px sans-serif", color: "#FF4081", h: 36, gap: 10, shadow: "rgba(255,64,129,0.3)" },
-            { text: modeName, font: "bold 18px sans-serif", color: "#2C3E50", h: 18, gap: 15 },
-            { text: this.getPlayedGamesStr(), font: "bold 12px sans-serif", color: "#7F8C8D", h: 12, gap: 40, wrapWidth: 320 },
-            { text: "TOTAL SCORE", font: "bold 14px sans-serif", color: "#7F8C8D", h: 14, gap: 5 },
-            { text: this.score.toString(), font: "900 48px sans-serif", color: "#2C3E50", h: 48, gap: 0 }
+            { text: langs[currentLang].app_title, font: "bold 20px sans-serif", color: textColorSec, h: 20, gap: 30 },
+            { text: rank.badge, font: "60px sans-serif", color: "#000", h: 60, gap: 10 },
+            { text: langs[currentLang][rank.key], font: "900 36px sans-serif", color: "#FF4081", h: 36, gap: 5, shadow: "rgba(255,64,129,0.3)" },
+            { text: modeName, font: "bold 18px sans-serif", color: textColorMain, h: 18, gap: pName ? 10 : 15 }
         ];
+        
+        if (pName) texts.push({ text: `Player: ${pName}`, font: "bold 18px sans-serif", color: "#4CAF50", h: 18, gap: 15 });
+        
+        texts.push(
+            { text: this.getPlayedGamesStr(), font: "bold 12px sans-serif", color: textColorSec, h: 12, gap: 30, wrapWidth: 320 },
+            { text: "TOTAL SCORE", font: "bold 14px sans-serif", color: textColorSec, h: 14, gap: 5 },
+            { text: this.score.toString(), font: "900 48px sans-serif", color: textColorMain, h: 48, gap: 0 }
+        );
+        
         drawInfoGraphicText(ctx, w/2, h/2, texts);
         
-        // 🚀 動態防禦：如果找不到 img 標籤，就自動生一個塞入 DOM！
         let previewImg = document.getElementById('resultCanvasPreview');
         if (!previewImg) {
-            console.warn("⚠️ 防禦機制啟動：找不到 resultCanvasPreview，正在動態建立...");
             const wrapNode = document.getElementById('canvasWrapNode') || document.querySelector('.canvas-preview-wrap');
             if (wrapNode) {
-                previewImg = document.createElement('img');
-                previewImg.id = 'resultCanvasPreview';
-                previewImg.style.width = '100%';
-                wrapNode.appendChild(previewImg);
+                previewImg = document.createElement('img'); previewImg.id = 'resultCanvasPreview'; wrapNode.appendChild(previewImg);
             }
         }
-        
-        if (previewImg) {
-            previewImg.src = canvas.toDataURL('image/png');
-        }
+        if (previewImg) previewImg.src = canvas.toDataURL('image/png');
     },
 
     showFinalResult() {
@@ -346,8 +356,10 @@ const App = {
 
     shareToX() {
         let shareUrl = window.location.href.split('?')[0];
+        const pName = document.getElementById('playerName').value.trim();
+        
         if (this.mode === 'classic') {
-            const name = document.getElementById('playerName').value.trim() || 'Anonymous';
+            const name = pName || 'Anonymous';
             leaderboard.push({n:name, s:this.score});
             const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(leaderboard.sort((a,b)=>b.s-a.s).slice(0,10)))));
             shareUrl += '?lb=' + b64;
@@ -357,8 +369,10 @@ const App = {
         const modeStr = langs[currentLang][`mode_${this.mode}`] || "";
         const modeName = modeStr.replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
         
+        const displayName = pName ? pName : (currentLang.startsWith('en') ? "I" : "我");
         let textTemplate = langs[currentLang][this.mode === 'classic' ? 'share_classic' : 'share_normal'];
-        let text = textTemplate.replace('[MODE]', modeName).replace('[TITLE]', title).replace('[SCORE]', this.score).replace('[URL]', shareUrl);
+        let text = textTemplate.replace('[NAME]', displayName).replace('[MODE]', modeName).replace('[TITLE]', title).replace('[SCORE]', this.score).replace('[URL]', shareUrl);
+        
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
     },
 
