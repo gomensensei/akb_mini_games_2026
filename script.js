@@ -4,15 +4,13 @@ let currentLang = 'zh-HK';
 let leaderboard = [];
 
 // ==========================================
-// 資料清洗引擎 (加入韓文過濾與容錯)
+// 資料清洗引擎
 // ==========================================
 function normalizeMembers(rawList) {
     return rawList.map((m, index) => {
-        // 過濾錯誤的韓文 Kana
         let kana = m.name_kana || "";
         if (/[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/.test(kana)) kana = "";
 
-        // 應援色提取
         let c1 = "#FF4081", c2 = "#FFB6C1";
         if (m.colorData && m.colorData.length > 0) {
             c1 = m.colorData[0].color;
@@ -37,7 +35,6 @@ function normalizeMembers(rawList) {
     });
 }
 
-// 載入資料
 async function loadData() {
     try {
         const [mRes, lRes] = await Promise.all([ fetch('members.json'), fetch('langs.json') ]);
@@ -115,7 +112,15 @@ function triggerConfetti() {
     confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#FF1493', '#4CAF50', '#00FFFF'], zIndex: 9999 }); 
 }
 
-// 繪製圓角矩形 (完美兼容舊版 iOS/Safari)
+// 萬能顏色轉換器 (防止舊手機 Canvas 不支援 8 位 Hex)
+function hexToRgba(hex, alpha) {
+    let r = 0, g = 0, b = 0;
+    if (hex.length === 4) { r = parseInt(hex[1]+hex[1], 16); g = parseInt(hex[2]+hex[2], 16); b = parseInt(hex[3]+hex[3], 16); } 
+    else if (hex.length === 7) { r = parseInt(hex.substring(1,3), 16); g = parseInt(hex.substring(3,5), 16); b = parseInt(hex.substring(5,7), 16); }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// 絕對防崩潰嘅圓角矩形畫法
 function drawRoundRect(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -150,7 +155,6 @@ function drawInfoGraphicText(ctx, startX, startY, textArray) {
     ctx.shadowColor = 'transparent';
 }
 
-// 主程式 App
 const App = {
     mode: '', queue: [], currentQIdx: 0, round: 0, maxRounds: 5, score: 0,
     activeGame: null, animFrame: null, timerStart: 0, timeLimit: 0, difficulty: 1,
@@ -270,8 +274,10 @@ const App = {
         canvas.width = w * scale; canvas.height = h * scale; const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
         
         const grad = ctx.createLinearGradient(0,0,w,h); 
-        if (this.lastTarget) {
-            grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.5, this.lastTarget.c1 + '80'); grad.addColorStop(1, this.lastTarget.c2 + '90');
+        if (this.lastTarget && this.lastTarget.c1) {
+            grad.addColorStop(0, '#ffffff'); 
+            grad.addColorStop(0.5, hexToRgba(this.lastTarget.c1, 0.5)); // 安全透明度轉換
+            grad.addColorStop(1, hexToRgba(this.lastTarget.c2, 0.6));
         } else {
             grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
         }
@@ -279,12 +285,13 @@ const App = {
         
         ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
         
-        // 使用相容舊版的畫圓角邏輯
+        // 使用安全語法畫框
         drawRoundRect(ctx, 20, 20, w-40, h-40, 20);
         ctx.shadowColor = 'transparent';
         
         const rank = this.calculateRank();
-        const modeName = langs[currentLang][`mode_${this.mode}`].split(' ').pop(); // 取出無 emoji 的模式名稱
+        const modeStr = langs[currentLang][`mode_${this.mode}`] || "";
+        const modeName = modeStr.replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
         
         const texts = [
             { text: langs[currentLang].app_title, font: "bold 20px sans-serif", color: "#7F8C8D", h: 20, gap: 40 },
@@ -299,25 +306,9 @@ const App = {
         document.getElementById('resultCanvasPreview').src = canvas.toDataURL('image/png');
     },
 
-    updateResultView() {
-        const rank = this.calculateRank();
-        const modeName = langs[currentLang][`mode_${this.mode}`];
-        document.getElementById('resBadge').textContent = rank.badge;
-        document.getElementById('resTitle').textContent = langs[currentLang][rank.key];
-        document.getElementById('resModeLabel').textContent = modeName;
-        document.getElementById('resGamesList').textContent = this.getPlayedGamesStr();
-        document.getElementById('resScoreVal').textContent = this.score;
-
-        if (this.lastTarget) {
-            const rc = document.getElementById('resultCardNode');
-            rc.style.background = `linear-gradient(135deg, rgba(255,255,255,0.95), ${this.lastTarget.c1}30, ${this.lastTarget.c2}50)`;
-        }
-        this.generateResultCanvas();
-    },
-
     showFinalResult() {
         if(this.mode === '') return;
-        this.updateResultView();
+        this.generateResultCanvas();
         
         if (this.mode === 'classic') {
             document.getElementById('playerName').classList.remove('hidden');
@@ -352,8 +343,11 @@ const App = {
             const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(leaderboard.sort((a,b)=>b.s-a.s).slice(0,10)))));
             shareUrl += '?lb=' + b64;
         }
+        
         const rank = this.calculateRank(), title = langs[currentLang][rank.key];
-        const modeName = langs[currentLang][`mode_${this.mode}`].split(' ').pop();
+        const modeStr = langs[currentLang][`mode_${this.mode}`] || "";
+        const modeName = modeStr.replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
+        
         let textTemplate = langs[currentLang][this.mode === 'classic' ? 'share_classic' : 'share_normal'];
         let text = textTemplate.replace('[MODE]', modeName).replace('[TITLE]', title).replace('[SCORE]', this.score).replace('[URL]', shareUrl);
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
@@ -383,7 +377,7 @@ const Games = {
             let m = shuffle(membersDB).slice(0, 8); let cards = shuffle([...m, ...m]);
             cards.forEach(mem => {
                 const el = document.createElement('div'); el.className = 'mem-card'; el.dataset.id = mem.id;
-                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'"><div class="mem-name">${getRubyNameHTML(mem)}</div></div></div>`;
+                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'"><div class="mem-name">${getRubyNameHTML(mem)}<div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
                 el.onclick = () => {
                     if(!this.isActive || this.lock || el.classList.contains('flipped') || el.classList.contains('matched')) return;
                     el.classList.add('flipped'); this.flipped.push(el);
@@ -409,7 +403,7 @@ const Games = {
             let pool = shuffle(membersDB), opts = [], used = new Set();
             for(let m of pool) { if(!used.has(m.genNum)) { opts.push(m); used.add(m.genNum); } if(opts.length===4) break; }
             this.correctIds = [...opts].sort((a,b)=>a.genNum-b.genNum).map(m=>m.id);
-            App.lastTarget = opts.find(m => m.id === this.correctIds[0]); // 最老前輩設為 Target
+            App.lastTarget = opts.find(m => m.id === this.correctIds[0]);
             shuffle(opts).forEach(m => {
                 const el = document.createElement('div'); el.className = 'sort-card'; el.dataset.id = m.id;
                 el.innerHTML = `<div class="sort-badge"></div><img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'"><div class="sort-gen">${getGenDisplay(m)}</div><div class="sort-name">${getRubyNameHTML(m)}</div>`;
@@ -495,6 +489,7 @@ const Games = {
             let m1 = membersDB[Math.floor(Math.random()*membersDB.length)], m2;
             do { m2 = membersDB[Math.floor(Math.random()*membersDB.length)]; } while(m1.genNum === m2.genNum);
             App.lastTarget = m1.genNum < m2.genNum ? m1 : m2;
+
             [m1, m2].forEach((m, i) => {
                 const el = document.createElement('div'); el.className = 'duel-card'; el.id = `duel${i}`;
                 el.innerHTML = `<img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/200x300/FFB6C1/FFF'"><div class="duel-gen">${getGenDisplay(m)}</div><div class="duel-name">${getRubyNameHTML(m)}</div>`;
