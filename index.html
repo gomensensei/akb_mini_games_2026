@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AKB48 粉絲入門挑戰 - Fan Quest</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <button class="btn btn-outline" style="padding: 6px 12px; font-size:0.9rem;" id="btnHome" class="hidden">🏠 <span data-i18n="btn_home">首頁</span></button>
+            <select class="lang-select" id="langSelector">
+                <option value="zh-HK">繁體 (HK)</option>
+                <option value="zh-TW">繁體 (TW)</option>
+                <option value="zh-CN">简体</option>
+                <option value="ja">日本語</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+        <div class="score-board">Score: <span id="scoreDisplay">0</span></div>
+    </header>
+
+    <div class="timer-bg hidden" id="globalTimerBar"><div class="timer-fill" id="globalTimerFill"></div></div>
+    <div style="text-align:center; font-weight:900; color:var(--primary); margin-bottom:10px;" id="gameTitleHint" class="hidden"></div>
+
+    <main id="view-dashboard" class="stage-active">
+        <h1 style="color: var(--primary); text-align: center; font-size: 2.2rem; margin: 0 0 10px; text-shadow: 0 4px 10px rgba(0,0,0,0.05);" data-i18n="app_title">AKB48 粉絲入門挑戰</h1>
+        
+        <div class="mode-card glass-panel" onclick="App.startMode('classic')">
+            <h2 data-i18n="mode_classic">🏆 經典挑戰</h2>
+            <p data-i18n="desc_classic">挑戰 7 項小遊戲，和朋友比拼分數！</p>
+        </div>
+        <div class="mode-card glass-panel" onclick="App.showModal('casual')">
+            <h2 data-i18n="mode_casual">☕ 自由探索</h2>
+            <p data-i18n="desc_casual">選擇單一遊戲輕鬆遊玩。</p>
+        </div>
+        <div class="mode-card glass-panel" onclick="App.showModal('custom')">
+            <h2 data-i18n="mode_custom">🛠️ 自訂組合</h2>
+            <p data-i18n="desc_custom">挑選你喜歡的遊戲清單。</p>
+        </div>
+        <div class="mode-card glass-panel" onclick="App.showModal('challenge')">
+            <h2 data-i18n="mode_challenge">🔥 極限生存</h2>
+            <p data-i18n="desc_challenge">單一遊戲耐久戰！</p>
+        </div>
+
+        <div class="leaderboard-box hidden" id="lbContainer">
+            <h3 class="leaderboard-title" data-i18n="lb_title">🔥 挑戰者排行榜</h3>
+            <ul class="lb-list" id="lbList"></ul>
+        </div>
+    </main>
+
+    <main id="view-game" class="game-wrapper hidden">
+        <div id="container-mem" class="mem-grid hidden"></div>
+        <div id="container-sort" class="sort-grid hidden"></div>
+        <div id="container-find" class="fly-arena hidden"></div>
+        <div id="container-macro" class="hidden" style="width:100%; display:flex; flex-direction:column; flex:1;">
+            <div class="macro-view"><img id="macroImg" class="macro-img"><div class="macro-scan"></div></div>
+            <div class="opt-grid" id="macroOpts"></div>
+        </div>
+        <div id="container-duel" class="duel-arena hidden"></div>
+        <div id="container-smile" class="hidden" style="width:100%; display:flex; flex-direction:column; flex:1;">
+            <div class="smile-view" id="smileView"><img id="smileSharp" class="smile-sharp" src="" crossorigin="anonymous"><div id="smileFrosted" class="smile-frosted"></div></div>
+            <div class="opt-grid" id="smileOpts" style="width: 100%;"></div>
+        </div>
+        <div id="container-puz" class="hidden" style="width:100%; display:flex; flex-direction:column; flex:1;">
+            <div class="puz-grid" id="puzGrid"><img id="puzOverlay" class="puz-overlay" src="" crossorigin="anonymous"></div>
+        </div>
+    </main>
+
+    <main id="view-result" class="hidden">
+        <div class="canvas-preview-wrap">
+            <img id="resultCanvasPreview" src="">
+        </div>
+        
+        <div class="social-panel">
+            <input type="text" id="playerName" class="name-input hidden" maxlength="12" placeholder="輸入名字參與排行榜" data-i18n-placeholder="ph_name">
+            <div class="row">
+                <button class="btn" style="flex: 1;" onclick="App.downloadResult()">📥 <span data-i18n="btn_dl">下載圖</span></button>
+                <button class="btn" style="flex: 1.5; background: #000;" onclick="App.shareToX()">𝕏 <span id="btnShareText" data-i18n="btn_share_lb">加入排行並分享</span></button>
+            </div>
+            <button class="btn btn-outline" style="width: 100%;" onclick="App.goHome()">🏠 <span data-i18n="btn_back_home">回主選單</span></button>
+        </div>
+    </main>
+
+    <div class="modal-overlay flex-center hidden" id="selectionModal">
+        <div class="glass-panel" style="padding: 24px; width: 100%; max-width: 400px; text-align: center;">
+            <h2 id="modalTitle" style="color: var(--primary); margin-top: 0;"></h2>
+            <div id="modalContent" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; text-align:left;"></div>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn btn-outline" onclick="App.hideModal()" data-i18n="btn_cancel">取消</button>
+                <button class="btn" id="modalConfirmBtn" data-i18n="btn_start">開始挑戰</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay flex-center hidden" id="downloadModal" style="z-index: 200;">
+        <div class="glass-panel" style="padding: 20px; text-align: center; max-width: 90vw; width: 400px;">
+            <h3 style="color: var(--primary); margin-top:0;" data-i18n="long_press_save">👇 長按圖片即可保存 👇</h3>
+            <img id="exportImgDisplay" src="" style="width: 100%; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
+            <button class="btn btn-outline" style="margin-top: 15px; width: 100%;" onclick="document.getElementById('downloadModal').classList.add('hidden')" data-i18n="btn_cancel">關閉</button>
+        </div>
+    </div>
+
+    <footer class="app-footer">
+        Copyright &copy; 2026 Gomensensei. All rights reserved.
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
