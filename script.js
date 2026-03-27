@@ -16,7 +16,6 @@ function normalizeMembers(rawList) {
         
         let gStr = m.ki || m.generation || "Unknown";
         let gNum = parseFloat(m.genNum) || parseFloat(m.ki) || 99;
-        // 修正 Team 8 與 15期的輩份問題
         if (gStr.includes("Team 8") || gStr.includes("チーム8")) gNum = 15.1;
         if (gStr.includes("ドラフト2") || gStr.includes("D2")) gNum = 15.2;
         if (gStr.includes("ドラフト3") || gStr.includes("D3")) gNum = 15.3;
@@ -104,9 +103,14 @@ function applyLang() {
     
     populateMemberSelector(); 
 
-    if (!document.getElementById('view-result').classList.contains('hidden')) {
-        App.updateResultView(); 
-        document.getElementById('btnShareText').textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
+    // 修復 3：切換語言時瞬間觸發重繪
+    const resultView = document.getElementById('view-result');
+    if (resultView && !resultView.classList.contains('hidden')) {
+        // 使用 setTimeout 確保字體和 DOM 更新完成後才畫圖
+        setTimeout(() => {
+            App.generateResultCanvas(); 
+            document.getElementById('btnShareText').textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
+        }, 10);
     }
 }
 
@@ -223,7 +227,6 @@ const App = {
     startMode(mode, ids = []) {
         this.hideModal(); this.mode = mode; this.score = 0; this.currentQIdx = 0; document.getElementById('scoreDisplay').textContent = 0;
         
-        // 強制經典模式為特定次序
         if (mode === 'classic') {
             this.queue = ['smile', 'duel', 'sort', 'find', 'macro', 'mem', 'puz', 'color'];
         } else {
@@ -242,7 +245,6 @@ const App = {
         if (this.currentQIdx >= this.queue.length || this.mode === '') { this.showFinalResult(); return; }
         const gId = this.queue[this.currentQIdx]; this.round = 0; this.activeGame = Games[gId];
         
-        // 經典模式中拼圖與對對碰只玩 1 回合
         if (this.mode === 'classic' && (gId === 'mem' || gId === 'puz')) this.maxRounds = 1;
         else this.maxRounds = (this.mode === 'challenge' ? 50 : 5);
         
@@ -320,7 +322,7 @@ const App = {
         const grad = ctx.createLinearGradient(0,0,w,h); 
         if (targetColorMember && targetColorMember.c1) {
             grad.addColorStop(0, '#ffffff'); 
-            grad.addColorStop(0.5, hexToRgba(targetColorMember.c1, 0.15)); // 更亮更柔和
+            grad.addColorStop(0.5, hexToRgba(targetColorMember.c1, 0.15)); 
             grad.addColorStop(1, hexToRgba(targetColorMember.c2, 0.35));
         } else {
             grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
@@ -446,7 +448,7 @@ const Games = {
             let m = shuffle(membersDB).slice(0, 8); let cards = shuffle([...m, ...m]);
             cards.forEach(mem => {
                 const el = document.createElement('div'); el.className = 'mem-card'; el.dataset.id = mem.id;
-                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'"><div class="mem-name">${getRubyNameHTML(mem)}<div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
+                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'"><div class="mem-name-wrap"><div class="mem-name">${getRubyNameHTML(mem)}</div><div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
                 el.onclick = () => {
                     if(!this.isActive || this.lock || el.classList.contains('flipped') || el.classList.contains('matched')) return;
                     el.classList.add('flipped'); this.flipped.push(el);
@@ -487,7 +489,7 @@ const Games = {
                             c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('correct'));
                             App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); 
                         } else { 
-                            c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('wrong')); App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
+                            c.classList.add('shake'); c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('wrong')); App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
                         }
                         App.roundEndDelay(2500); 
                     }
@@ -514,8 +516,8 @@ const Games = {
                 el.innerHTML = `<img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
                 
-                // 修復：大 Mon 速度鎖定器
-                let baseSpeed = Math.min(rect.width * 0.003, 3);
+                // 修復 4：再下調速度上限
+                let baseSpeed = Math.min(rect.width * 0.003, 2.2);
                 let s = baseSpeed * (Math.random() * 0.5 + 0.8) * App.difficulty;
                 
                 el.style.transform = `translate(${x}px, ${y}px)`;
