@@ -14,6 +14,13 @@ function normalizeMembers(rawList) {
             c2 = m.colorData.length > 1 ? m.colorData[1].color : c1;
         }
         
+        let gStr = m.ki || m.generation || "Unknown";
+        let gNum = parseFloat(m.genNum) || parseFloat(m.ki) || 99;
+        // Fix Team 8 seniority vs 15th gen (15th debuted earlier)
+        if (gStr.includes("Team 8")) gNum = 15.1;
+        if (gStr.includes("ドラフト2") || gStr.includes("D2")) gNum = 15.2;
+        if (gStr.includes("ドラフト3") || gStr.includes("D3")) gNum = 15.3;
+
         return {
             id: String(m.id || index),
             name_ja: m.name_ja || m.name || "Unknown",
@@ -23,8 +30,8 @@ function normalizeMembers(rawList) {
             name_ko: m.name_ko || m.name_ja || "Unknown",
             name_th: m.name_th || m.name_en || m.name_ja || "Unknown",
             nickname: m.nickname || "",
-            genString: m.ki || m.generation || "Unknown",
-            genNum: parseFloat(m.genNum) || parseFloat(m.ki) || 99,
+            genString: gStr,
+            genNum: gNum,
             image: m.img_url || m.image || m.img || m.photo || "https://placehold.co/300x400/FFB6C1/FFF",
             c1: c1,
             c2: c2
@@ -46,9 +53,11 @@ async function loadData() {
     }
 }
 
+// 加入應援色鑑定 (color)
 const gameList = [
     { id: 'mem', baseTime: 40000 }, { id: 'sort', baseTime: 15000 }, { id: 'find', baseTime: 15000 },
-    { id: 'macro', baseTime: 15000 }, { id: 'duel', baseTime: 5000 }, { id: 'smile', baseTime: 12000 }, { id: 'puz', baseTime: 25000 }
+    { id: 'macro', baseTime: 15000 }, { id: 'duel', baseTime: 5000 }, { id: 'smile', baseTime: 12000 }, 
+    { id: 'color', baseTime: 10000 }, { id: 'puz', baseTime: 25000 }
 ];
 
 function detectLang() {
@@ -65,22 +74,19 @@ function detectLang() {
     applyLang();
 }
 
-// 根據語言重新建立背景選擇選單
 function populateMemberSelector() {
     const bgSel = document.getElementById('bgColorSelector');
     if (!bgSel || membersDB.length === 0) return;
     const currentVal = bgSel.value;
     
     bgSel.innerHTML = `<option value="auto" data-i18n="bg_auto">${langs[currentLang].bg_auto || '✨ 專屬應援色 (Auto)'}</option>`;
-    
     membersDB.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
         opt.textContent = `🎨 ${getDisplayName(m)}`;
         bgSel.appendChild(opt);
     });
-    
-    bgSel.value = currentVal; // 保留使用者選擇
+    bgSel.value = currentVal; 
 }
 
 function applyLang() {
@@ -97,11 +103,10 @@ function applyLang() {
         document.getElementById('gameTitleHint').textContent = `${getGameName(gameList.find(g=>g.id===App.queue[App.currentQIdx]))} - ${App.round}/${App.maxRounds}`;
     }
     
-    populateMemberSelector(); // 切換語言時更新選單內的名字
+    populateMemberSelector(); 
 
-    // 若正在顯示結算畫面，即時重繪 Canvas 與按鈕文字
     if (!document.getElementById('view-result').classList.contains('hidden')) {
-        App.generateResultCanvas();
+        App.updateResultView(); // 觸發重繪畫布
         document.getElementById('btnShareText').textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
     }
 }
@@ -139,6 +144,7 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+// 防崩潰圓角引擎
 function drawRoundRect(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -180,7 +186,7 @@ const App = {
 
     init() {
         detectLang();
-        populateMemberSelector(); // 初始化選單
+        populateMemberSelector();
         document.getElementById('btnHome').onclick = () => this.goHome();
         
         const urlParams = new URLSearchParams(window.location.search);
@@ -220,7 +226,6 @@ const App = {
         this.hideModal(); this.mode = mode; this.score = 0; this.currentQIdx = 0; document.getElementById('scoreDisplay').textContent = 0;
         this.queue = mode === 'classic' ? gameList.map(g=>g.id) : ids;
         
-        // 每次開局重設為 Auto
         const bgSel = document.getElementById('bgColorSelector');
         if (bgSel) bgSel.value = 'auto';
 
@@ -232,7 +237,11 @@ const App = {
     loadNextGameInQueue() {
         if (this.currentQIdx >= this.queue.length || this.mode === '') { this.showFinalResult(); return; }
         const gId = this.queue[this.currentQIdx]; this.round = 0; this.activeGame = Games[gId];
-        this.maxRounds = (this.mode === 'classic' && gId === 'mem') ? 1 : (this.mode === 'challenge' ? 50 : 5);
+        
+        // 經典模式下：拼圖與對對碰只玩 1 回合
+        if (this.mode === 'classic' && (gId === 'mem' || gId === 'puz')) this.maxRounds = 1;
+        else this.maxRounds = (this.mode === 'challenge' ? 50 : 5);
+        
         document.querySelectorAll('#view-game > div').forEach(div => div.classList.add('hidden'));
         document.getElementById(`container-${gId}`).classList.remove('hidden');
         this.nextRound();
@@ -278,7 +287,7 @@ const App = {
 
     calculateRank() {
         let maxPossible = this.queue.length * this.maxRounds * 2000; 
-        if(this.mode === 'classic') maxPossible = (1 * 2000) + (6 * 5 * 2000); 
+        if(this.mode === 'classic') maxPossible = (2 * 1 * 2000) + (6 * 5 * 2000); // 2個1回，6個5回
         if(this.mode === 'challenge') maxPossible *= 1.5;
         const ratio = this.score / (maxPossible || 1);
         if(ratio > 0.8) return { badge: "👑", key: "r1" };
@@ -294,10 +303,12 @@ const App = {
         return `${label} ${names}`;
     },
 
-    // 支援下拉選單抓取特定成員背景色
     generateResultCanvas() {
         const canvas = document.createElement('canvas'); const scale = 3, w = 400, h = 600;
         canvas.width = w * scale; canvas.height = h * scale; const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
+        
+        // 永遠先鋪白底，防止背景黑掉
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,w,h);
         
         const bgVal = document.getElementById('bgColorSelector') ? document.getElementById('bgColorSelector').value : 'auto';
         let targetColorMember = this.lastTarget;
@@ -308,14 +319,14 @@ const App = {
         const grad = ctx.createLinearGradient(0,0,w,h); 
         if (targetColorMember && targetColorMember.c1) {
             grad.addColorStop(0, '#ffffff'); 
-            grad.addColorStop(0.5, hexToRgba(targetColorMember.c1, 0.5));
-            grad.addColorStop(1, hexToRgba(targetColorMember.c2, 0.6));
+            grad.addColorStop(0.5, hexToRgba(targetColorMember.c1, 0.2)); // 調低透明度
+            grad.addColorStop(1, hexToRgba(targetColorMember.c2, 0.4));
         } else {
             grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
         }
         ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
         
-        ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
         drawRoundRect(ctx, 20, 20, w-40, h-40, 20);
         ctx.shadowColor = 'transparent';
         
@@ -330,7 +341,7 @@ const App = {
         const texts = [
             { text: langs[currentLang].app_title, font: "bold 20px sans-serif", color: "#7F8C8D", h: 20, gap: 35 },
             { text: rank.badge, font: "60px sans-serif", color: "#000", h: 60, gap: 10 },
-            { text: langs[currentLang][rank.key], font: "900 36px sans-serif", color: "#FF4081", h: 36, gap: 10, shadow: "rgba(255,64,129,0.3)" },
+            { text: langs[currentLang][rank.key], font: "900 36px sans-serif", color: "#FF4081", h: 36, gap: 5, shadow: "rgba(255,64,129,0.3)" },
             { text: modeName, font: "bold 18px sans-serif", color: "#2C3E50", h: 18, gap: pName ? 10 : 20 }
         ];
 
@@ -471,13 +482,14 @@ const Games = {
                     c.querySelectorAll('.sort-card.selected').forEach(x=>x.querySelector('.sort-badge').textContent = this.picks.indexOf(x.dataset.id) + 1);
                     if(this.picks.length===4) {
                         this.isActive = false; 
+                        c.querySelectorAll('.sort-card').forEach(x=>{x.classList.add('revealed'); x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;});
                         if(this.picks.every((id,i)=>id===this.correctIds[i])) { 
-                            c.querySelectorAll('.sort-card').forEach(x=>{x.classList.add('correct','revealed'); x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;});
-                            App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(2000); 
+                            c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('correct'));
+                            App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); 
                         } else { 
                             c.classList.add('shake'); c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('wrong')); App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
-                            setTimeout(()=>{c.classList.remove('shake'); c.querySelectorAll('.sort-card').forEach(x=>{x.classList.remove('wrong','selected'); x.querySelector('.sort-badge').textContent='';}); this.picks=[]; this.isActive=true;}, App.getDelay(800));
                         }
+                        App.roundEndDelay(2000); 
                     }
                 }; c.appendChild(el);
             });
@@ -495,12 +507,16 @@ const Games = {
             let pool = [this.target]; while(pool.length<20) pool.push(membersDB[Math.floor(Math.random()*membersDB.length)]);
             const rect = c.getBoundingClientRect() || {width:300, height:300}; 
             const ns = window.innerWidth > 768 ? 90 : 65; 
+            
             shuffle(pool).forEach(m => {
                 const el = document.createElement('div'); el.className = 'fly-node'; el.dataset.id = m.id;
                 el.style.width=el.style.height=ns+'px';
                 el.innerHTML = `<img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
-                let s = (Math.random()*1.0 + 0.3) * (window.innerWidth>768 ? 0.4 : 0.8) * App.difficulty;
+                // 按畫面寬度給予合理速度
+                let baseSpeed = rect.width * 0.005;
+                let s = baseSpeed * (Math.random() * 0.5 + 0.8) * App.difficulty;
+                
                 el.style.transform = `translate(${x}px, ${y}px)`;
                 el.onclick = (e) => {
                     e.stopPropagation(); if(!this.isActive) return; 
@@ -518,6 +534,28 @@ const Games = {
             this.nodes.forEach(n => { n.x+=n.vx; n.y+=n.vy; if(n.x<=0||n.x+n.size>=rect.width) n.vx*=-1; if(n.y<=0||n.y+n.size>=rect.height) n.vy*=-1; n.el.style.transform = `translate(${n.x}px, ${n.y}px)`; });
         }, 
         onTimeOut() { document.getElementById('container-find').classList.add('dimmed'); this.nodes.find(n=>n.el.dataset.id===this.target.id).el.classList.add('correct'); App.roundEndDelay(2000); }
+    },
+    // 新增：應援色鑑定
+    color: {
+        isActive: false, target: null,
+        setup() {
+            const cDisplay = document.getElementById('colorDisplay'), opts = document.getElementById('colorOpts'); 
+            cDisplay.innerHTML = ''; opts.innerHTML = '';
+            let pool = shuffle(membersDB).slice(0,4); this.target = pool[0]; pool = shuffle(pool); App.lastTarget = this.target;
+            
+            cDisplay.innerHTML = `<div class="color-chunk" style="background-color:${this.target.c1};"></div><div class="color-chunk" style="background-color:${this.target.c2};"></div>`;
+            
+            pool.forEach(m => {
+                const b = document.createElement('button'); b.className = 'opt-btn'; b.dataset.id = m.id; b.innerHTML = getRubyNameHTML(m);
+                b.onclick = () => { 
+                    if(!this.isActive) return; this.isActive=false; 
+                    if(m.id===this.target.id) { b.classList.add('correct'); App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); } 
+                    else { b.classList.add('wrong'); Array.from(opts.children).find(x=>x.dataset.id===this.target.id).classList.add('correct'); }
+                    App.roundEndDelay(2000); 
+                }; opts.appendChild(b);
+            });
+        },
+        onTimeOut() { Array.from(document.getElementById('colorOpts').children).find(x=>x.dataset.id===this.target.id).classList.add('correct'); App.roundEndDelay(1500); }
     },
     macro: {
         isActive: false, target: null, px: 0, py: 0, zoom: 6,
