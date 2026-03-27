@@ -48,10 +48,8 @@ body { margin: 0; background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), 
 ruby { ruby-align: center; }
 rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: translateY(2px); }
 
-/* Game Wrapper 寬度約束修復：防止電腦大螢幕爆框 */
 .game-wrapper { flex: 1; display: flex; flex-direction: column; max-width: 600px; margin: 0 auto; width: 100%; padding: 0 15px 15px; position: relative; max-height: calc(100dvh - 120px); }
 
-/* Memory 確保手機版不會溢出 */
 .mem-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; flex: 1; perspective: 1000px; max-height: 55vh; }
 .mem-card { position: relative; width: 100%; height: 100%; cursor: pointer; }
 .mem-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.4s ease-out; }
@@ -63,7 +61,6 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .mem-name { height: 35px; font-size: 10px; font-weight: 700; text-align: center; display: flex; flex-direction: column; justify-content: center; background: #fff; line-height: 1.1; padding: 0 2px;}
 .mem-card.matched .mem-front { border-color: #4CAF50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.6); }
 
-/* Sorter */
 .sort-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; flex: 1; max-height: 55vh; }
 .sort-card { position: relative; border-radius: 16px; overflow: hidden; border: 3px solid transparent; background: #fff; cursor: pointer; display: flex; flex-direction: column;}
 .sort-card.selected { border-color: #2196F3; }
@@ -75,19 +72,17 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .sort-name { height: 35px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; background: #fff; padding: 0 4px; }
 .sort-card.correct { border-color: #4CAF50; } .sort-card.wrong { border-color: #F44336; }
 
-/* Find Oshi */
 .fly-arena { flex: 1; position: relative; background: rgba(255,255,255,0.3); border-radius: 20px; overflow: hidden; max-height: 55vh; }
 .fly-node { position: absolute; border-radius: 50%; border: 3px solid #fff; cursor: pointer; will-change: transform; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
 .fly-node img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; pointer-events: none;}
 .fly-node.correct { z-index: 10; transition: transform 0.5s ease-out, box-shadow 0.3s; }
 .fly-arena.dimmed .fly-node:not(.correct) { opacity: 0.2; filter: grayscale(1); pointer-events: none; transition: all 0.5s ease;}
 
-/* Color Guess (新增遊戲) */
-.color-display { width: 100%; max-height: 25vh; aspect-ratio: 2/1; border-radius: 20px; display: flex; overflow: hidden; margin-bottom: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); margin-top: auto;}
+.color-display { width: 100%; max-height: 25vh; aspect-ratio: 2/1; border-radius: 20px; display: flex; overflow: hidden; margin: 0 auto 15px auto; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
 .color-chunk { flex: 1; height: 100%; }
 
-/* Macro Decode / Puzzle / Smile (限制最大高度與寬度，防止 17 吋裁切) */
-.macro-view, .smile-view, .puz-grid { width: 100%; max-width: 45vh; max-height: 45vh; aspect-ratio: 1; margin: auto auto 15px auto; border-radius: 20px; position: relative;}
+/* 修復：確保置中且不墜底 */
+.macro-view, .smile-view, .puz-grid { width: 100%; max-width: 45vh; max-height: 45vh; aspect-ratio: 1; margin: 0 auto 15px auto; border-radius: 20px; position: relative; align-self: center;}
 .macro-view, .smile-view { background: #fff; overflow: hidden; }
 .puz-grid { background: rgba(255,255,255,0.4); padding: 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;}
 
@@ -98,7 +93,6 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .opt-btn.correct { background: rgba(76, 175, 80, 0.2); border-color: #4CAF50; color: #2E7D32; }
 .opt-btn.wrong { background: rgba(244, 67, 54, 0.2); border-color: #F44336; color: #C62828; }
 
-/* Senpai Duel */
 .duel-arena { display: flex; gap: 10px; flex: 1; align-items: stretch; position: relative; max-height: 55vh; }
 .duel-vs { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 44px; height: 44px; background: var(--primary); color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; z-index: 5; border: 2px solid #fff; animation: pulse 1s infinite alternate; }
 @keyframes pulse { to { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 15px var(--primary); } }
@@ -109,21 +103,18 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .duel-name { height: 45px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: 900; font-size: 13px; line-height: 1.2;}
 .duel-card.correct { border-color: #4CAF50; } .duel-card.wrong { border-color: #F44336; filter: grayscale(0.5);}
 
-/* Smile Window */
 .smile-sharp { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .smile-frosted { position: absolute; inset: 0; backdrop-filter: blur(25px) saturate(1.2); -webkit-backdrop-filter: blur(25px) saturate(1.2); background: rgba(255,255,255,0.6); mask-image: radial-gradient(circle var(--mask-size, 0px) at var(--mask-x, 50%) var(--mask-y, 50%), transparent 85%, black 100%); -webkit-mask-image: radial-gradient(circle var(--mask-size, 0px) at var(--mask-x, 50%) var(--mask-y, 50%), transparent 85%, black 100%); pointer-events: none; transition: opacity 0.5s ease; }
 .smile-view.revealed .smile-frosted { opacity: 0; }
 
-/* Puzzle */
 .puz-piece { position: relative; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.2s; border: 2px solid transparent;}
 .puz-piece.selected { transform: scale(0.9); border-color: var(--primary); }
 .puz-img { width: 100%; height: 100%; background-size: 300% 300%; transition: transform 0.3s; }
 .puz-overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 16px; opacity: 0; pointer-events: none; transition: 0.5s; z-index: 10; }
 
 .modal-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.6); backdrop-filter: blur(15px); z-index: 100; flex-direction: column; padding: 20px;}
-.app-footer { text-align: center; padding: 10px; font-size: 0.75rem; color: var(--text-sec); font-weight: 700; flex-shrink: 0; }
+.app-footer { text-align: center; padding: 10px; font-size: 0.75rem; color: var(--text-sec); font-weight: 700; flex-shrink: 0; line-height: 1.4;}
 
-/* 手機版適配微調 */
 @media (max-width: 480px) {
     .btn { font-size: 0.85rem; padding: 10px 16px;}
     .mode-card h2 { font-size: 1.1rem; }
