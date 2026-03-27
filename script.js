@@ -88,29 +88,40 @@ function populateMemberSelector() {
 }
 
 function applyLang() {
+    // 1. 更新一般文字
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (langs[currentLang] && langs[currentLang][key]) el.textContent = langs[currentLang][key];
     });
+    // 2. 更新 Placeholder
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
         if (langs[currentLang] && langs[currentLang][key]) el.placeholder = langs[currentLang][key];
     });
     
-    if (App.mode !== '' && document.getElementById('gameTitleHint')) {
-        document.getElementById('gameTitleHint').textContent = `${getGameName(gameList.find(g=>g.id===App.queue[App.currentQIdx]))} - ${App.round}/${App.maxRounds}`;
+    // 3. 修正：只有在「遊戲進行中」才更新標題，防止結算時因為 currentQIdx 越界而引發報錯中斷！
+    const gameView = document.getElementById('view-game');
+    if (App.mode !== '' && gameView && !gameView.classList.contains('hidden')) {
+        const currentGameId = App.queue[App.currentQIdx];
+        if (currentGameId) {
+            const gameObj = gameList.find(g => g.id === currentGameId);
+            if (gameObj && document.getElementById('gameTitleHint')) {
+                document.getElementById('gameTitleHint').textContent = `${getGameName(gameObj)} - ${App.round}/${App.maxRounds}`;
+            }
+        }
     }
     
+    // 4. 更新選單文字
     populateMemberSelector(); 
 
-    // 修復 3：切換語言時瞬間觸發重繪
+    // 5. 確保指令順利抵達 Canvas 重繪區
     const resultView = document.getElementById('view-result');
     if (resultView && !resultView.classList.contains('hidden')) {
-        // 使用 setTimeout 確保字體和 DOM 更新完成後才畫圖
-        setTimeout(() => {
-            App.generateResultCanvas(); 
-            document.getElementById('btnShareText').textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
-        }, 10);
+        App.generateResultCanvas(); 
+        const shareBtn = document.getElementById('btnShareText');
+        if (shareBtn) {
+            shareBtn.textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
+        }
     }
 }
 
@@ -516,7 +527,7 @@ const Games = {
                 el.innerHTML = `<img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
                 
-                // 修復 4：再下調速度上限
+                // 再次下調大 Mon 的極限速度
                 let baseSpeed = Math.min(rect.width * 0.003, 2.2);
                 let s = baseSpeed * (Math.random() * 0.5 + 0.8) * App.difficulty;
                 
