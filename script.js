@@ -16,8 +16,8 @@ function normalizeMembers(rawList) {
         
         let gStr = m.ki || m.generation || "Unknown";
         let gNum = parseFloat(m.genNum) || parseFloat(m.ki) || 99;
-        // Fix Team 8 seniority vs 15th gen (15th debuted earlier)
-        if (gStr.includes("Team 8")) gNum = 15.1;
+        // 修正 Team 8 與 15期的輩份問題
+        if (gStr.includes("Team 8") || gStr.includes("チーム8")) gNum = 15.1;
         if (gStr.includes("ドラフト2") || gStr.includes("D2")) gNum = 15.2;
         if (gStr.includes("ドラフト3") || gStr.includes("D3")) gNum = 15.3;
 
@@ -53,11 +53,10 @@ async function loadData() {
     }
 }
 
-// 加入應援色鑑定 (color)
 const gameList = [
-    { id: 'mem', baseTime: 40000 }, { id: 'sort', baseTime: 15000 }, { id: 'find', baseTime: 15000 },
-    { id: 'macro', baseTime: 15000 }, { id: 'duel', baseTime: 5000 }, { id: 'smile', baseTime: 12000 }, 
-    { id: 'color', baseTime: 10000 }, { id: 'puz', baseTime: 25000 }
+    { id: 'smile', baseTime: 12000 }, { id: 'duel', baseTime: 5000 }, { id: 'sort', baseTime: 15000 },
+    { id: 'find', baseTime: 15000 }, { id: 'macro', baseTime: 15000 }, { id: 'mem', baseTime: 40000 },
+    { id: 'puz', baseTime: 25000 }, { id: 'color', baseTime: 10000 }
 ];
 
 function detectLang() {
@@ -106,7 +105,7 @@ function applyLang() {
     populateMemberSelector(); 
 
     if (!document.getElementById('view-result').classList.contains('hidden')) {
-        App.updateResultView(); // 觸發重繪畫布
+        App.updateResultView(); 
         document.getElementById('btnShareText').textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
     }
 }
@@ -144,7 +143,6 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// 防崩潰圓角引擎
 function drawRoundRect(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -224,7 +222,13 @@ const App = {
 
     startMode(mode, ids = []) {
         this.hideModal(); this.mode = mode; this.score = 0; this.currentQIdx = 0; document.getElementById('scoreDisplay').textContent = 0;
-        this.queue = mode === 'classic' ? gameList.map(g=>g.id) : ids;
+        
+        // 強制經典模式為特定次序
+        if (mode === 'classic') {
+            this.queue = ['smile', 'duel', 'sort', 'find', 'macro', 'mem', 'puz', 'color'];
+        } else {
+            this.queue = ids;
+        }
         
         const bgSel = document.getElementById('bgColorSelector');
         if (bgSel) bgSel.value = 'auto';
@@ -238,7 +242,7 @@ const App = {
         if (this.currentQIdx >= this.queue.length || this.mode === '') { this.showFinalResult(); return; }
         const gId = this.queue[this.currentQIdx]; this.round = 0; this.activeGame = Games[gId];
         
-        // 經典模式下：拼圖與對對碰只玩 1 回合
+        // 經典模式中拼圖與對對碰只玩 1 回合
         if (this.mode === 'classic' && (gId === 'mem' || gId === 'puz')) this.maxRounds = 1;
         else this.maxRounds = (this.mode === 'challenge' ? 50 : 5);
         
@@ -287,7 +291,7 @@ const App = {
 
     calculateRank() {
         let maxPossible = this.queue.length * this.maxRounds * 2000; 
-        if(this.mode === 'classic') maxPossible = (2 * 1 * 2000) + (6 * 5 * 2000); // 2個1回，6個5回
+        if(this.mode === 'classic') maxPossible = (2 * 1 * 2000) + (6 * 5 * 2000); 
         if(this.mode === 'challenge') maxPossible *= 1.5;
         const ratio = this.score / (maxPossible || 1);
         if(ratio > 0.8) return { badge: "👑", key: "r1" };
@@ -307,52 +311,48 @@ const App = {
         const canvas = document.createElement('canvas'); const scale = 3, w = 400, h = 600;
         canvas.width = w * scale; canvas.height = h * scale; const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
         
-        // 永遠先鋪白底，防止背景黑掉
         ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,w,h);
         
         const bgVal = document.getElementById('bgColorSelector') ? document.getElementById('bgColorSelector').value : 'auto';
         let targetColorMember = this.lastTarget;
-        if (bgVal !== 'auto') {
-            targetColorMember = membersDB.find(m => m.id === bgVal) || this.lastTarget;
-        }
+        if (bgVal !== 'auto') targetColorMember = membersDB.find(m => m.id === bgVal) || this.lastTarget;
 
         const grad = ctx.createLinearGradient(0,0,w,h); 
         if (targetColorMember && targetColorMember.c1) {
             grad.addColorStop(0, '#ffffff'); 
-            grad.addColorStop(0.5, hexToRgba(targetColorMember.c1, 0.2)); // 調低透明度
-            grad.addColorStop(1, hexToRgba(targetColorMember.c2, 0.4));
+            grad.addColorStop(0.5, hexToRgba(targetColorMember.c1, 0.15)); // 更亮更柔和
+            grad.addColorStop(1, hexToRgba(targetColorMember.c2, 0.35));
         } else {
             grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
         }
         ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
         
-        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
         drawRoundRect(ctx, 20, 20, w-40, h-40, 20);
         ctx.shadowColor = 'transparent';
         
         const rank = this.calculateRank();
         const modeStr = langs[currentLang][`mode_${this.mode}`] || "";
         const modeName = modeStr.replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
-        
         const pName = document.getElementById('playerName') ? document.getElementById('playerName').value.trim() : '';
         const txtTotalScore = langs[currentLang].total_score || "TOTAL SCORE";
         const txtPlayerPrefix = langs[currentLang].player_prefix || "Player: ";
 
         const texts = [
-            { text: langs[currentLang].app_title, font: "bold 20px sans-serif", color: "#7F8C8D", h: 20, gap: 35 },
-            { text: rank.badge, font: "60px sans-serif", color: "#000", h: 60, gap: 10 },
-            { text: langs[currentLang][rank.key], font: "900 36px sans-serif", color: "#FF4081", h: 36, gap: 5, shadow: "rgba(255,64,129,0.3)" },
-            { text: modeName, font: "bold 18px sans-serif", color: "#2C3E50", h: 18, gap: pName ? 10 : 20 }
+            { text: langs[currentLang].app_title, font: "bold 20px 'Noto Sans JP', sans-serif", color: "#7F8C8D", h: 20, gap: 35 },
+            { text: rank.badge, font: "60px 'Noto Sans JP', sans-serif", color: "#000", h: 60, gap: 10 },
+            { text: langs[currentLang][rank.key], font: "900 36px 'Noto Sans JP', sans-serif", color: "#FF4081", h: 36, gap: 5, shadow: "rgba(255,64,129,0.3)" },
+            { text: modeName, font: "bold 18px 'Noto Sans JP', sans-serif", color: "#2C3E50", h: 18, gap: pName ? 10 : 20 }
         ];
 
         if (pName) {
-            texts.push({ text: `${txtPlayerPrefix}${pName}`, font: "bold 18px sans-serif", color: "#4CAF50", h: 18, gap: 15 });
+            texts.push({ text: `${txtPlayerPrefix}${pName}`, font: "bold 18px 'Noto Sans JP', sans-serif", color: "#4CAF50", h: 18, gap: 15 });
         }
         
         texts.push(
-            { text: this.getPlayedGamesStr(), font: "bold 12px sans-serif", color: "#7F8C8D", h: 12, gap: 35, wrapWidth: 320 },
-            { text: txtTotalScore, font: "bold 14px sans-serif", color: "#7F8C8D", h: 14, gap: 5 },
-            { text: this.score.toString(), font: "900 48px sans-serif", color: "#2C3E50", h: 48, gap: 0 }
+            { text: this.getPlayedGamesStr(), font: "bold 12px 'Noto Sans JP', sans-serif", color: "#7F8C8D", h: 12, gap: 35, wrapWidth: 320 },
+            { text: txtTotalScore, font: "bold 14px 'Noto Sans JP', sans-serif", color: "#7F8C8D", h: 14, gap: 5 },
+            { text: this.score.toString(), font: "900 48px 'Noto Sans JP', sans-serif", color: "#2C3E50", h: 48, gap: 0 }
         );
         
         drawInfoGraphicText(ctx, w/2, h/2, texts);
@@ -487,9 +487,9 @@ const Games = {
                             c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('correct'));
                             App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); 
                         } else { 
-                            c.classList.add('shake'); c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('wrong')); App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
+                            c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('wrong')); App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
                         }
-                        App.roundEndDelay(2000); 
+                        App.roundEndDelay(2500); 
                     }
                 }; c.appendChild(el);
             });
@@ -513,8 +513,9 @@ const Games = {
                 el.style.width=el.style.height=ns+'px';
                 el.innerHTML = `<img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
-                // 按畫面寬度給予合理速度
-                let baseSpeed = rect.width * 0.005;
+                
+                // 修復：大 Mon 速度鎖定器
+                let baseSpeed = Math.min(rect.width * 0.003, 3);
                 let s = baseSpeed * (Math.random() * 0.5 + 0.8) * App.difficulty;
                 
                 el.style.transform = `translate(${x}px, ${y}px)`;
@@ -535,7 +536,6 @@ const Games = {
         }, 
         onTimeOut() { document.getElementById('container-find').classList.add('dimmed'); this.nodes.find(n=>n.el.dataset.id===this.target.id).el.classList.add('correct'); App.roundEndDelay(2000); }
     },
-    // 新增：應援色鑑定
     color: {
         isActive: false, target: null,
         setup() {
