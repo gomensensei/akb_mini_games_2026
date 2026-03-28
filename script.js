@@ -56,6 +56,20 @@ function normalizeMembers(rawList) {
     });
 }
 
+// 移除 CORS 標籤，讓圖片自然快取
+async function preloadImagesBatch() {
+    const batchSize = 6;
+    for (let i = 0; i < membersDB.length; i += batchSize) {
+        const batch = membersDB.slice(i, i + batchSize);
+        await Promise.all(batch.map(m => new Promise(res => {
+            const img = new Image();
+            img.onload = res;
+            img.onerror = res; 
+            img.src = m.image;
+        })));
+    }
+}
+
 async function loadData() {
     try {
         const [mRes, lRes] = await Promise.all([ fetch('members.json'), fetch('langs.json') ]);
@@ -239,7 +253,7 @@ const App = {
         }
     },
 
-    // 🚀 真・非同步預載引擎 (解決死圖與 CORS 問題)
+    // 移除了 img.crossOrigin 的設定，讓 Browser 自然處理 Cache
     async startGameFlow() {
         document.getElementById('view-intro').classList.add('hidden');
         document.getElementById('loading-screen').classList.remove('hidden');
@@ -253,7 +267,6 @@ const App = {
         
         const loadPromises = membersDB.map(m => new Promise(resolve => {
             const img = new Image();
-            img.crossOrigin = "anonymous"; // 關鍵：匹配遊戲內設定，防止重複下載
             
             const onLoadOrError = () => {
                 loaded++;
@@ -269,8 +282,7 @@ const App = {
             img.src = m.image;
         }));
 
-        // 設置 8 秒終極防護，防止差網絡無限卡死
-        const timeout = new Promise(resolve => setTimeout(resolve, 8000));
+        const timeout = new Promise(resolve => setTimeout(resolve, 10000));
         await Promise.race([Promise.all(loadPromises), timeout]);
 
         document.getElementById('loading-screen').classList.add('hidden');
@@ -554,7 +566,7 @@ const App = {
 };
 
 // ==========================================
-// 遊戲邏輯實作
+// 遊戲邏輯實作 (移除所有 crossorigin 屬性)
 // ==========================================
 const Games = {
     mem: {
@@ -564,7 +576,7 @@ const Games = {
             let m = shuffle(membersDB).slice(0, 8); let cards = shuffle([...m, ...m]);
             cards.forEach(mem => {
                 const el = document.createElement('div'); el.className = 'mem-card'; el.dataset.id = mem.id;
-                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}" crossorigin="anonymous"><div class="mem-name-wrap"><div class="mem-name">${getRubyNameHTML(mem)}</div><div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
+                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}"><div class="mem-name-wrap"><div class="mem-name">${getRubyNameHTML(mem)}</div><div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
                 el.onclick = () => {
                     if(!this.isActive || this.lock || el.classList.contains('flipped') || el.classList.contains('matched')) return;
                     el.classList.add('flipped'); this.flipped.push(el);
@@ -593,7 +605,7 @@ const Games = {
             App.lastTarget = opts.find(m => m.id === this.correctIds[0]);
             shuffle(opts).forEach(m => {
                 const el = document.createElement('div'); el.className = 'sort-card'; el.dataset.id = m.id;
-                el.innerHTML = `<div class="sort-badge"></div><img src="${m.image}" crossorigin="anonymous"><div class="sort-gen">${getGenDisplay(m)}</div><div class="sort-name">${getRubyNameHTML(m)}</div>`;
+                el.innerHTML = `<div class="sort-badge"></div><img src="${m.image}"><div class="sort-gen">${getGenDisplay(m)}</div><div class="sort-name">${getRubyNameHTML(m)}</div>`;
                 el.onclick = () => {
                     if(!this.isActive) return; el.classList.toggle('selected');
                     if(el.classList.contains('selected')) this.picks.push(m.id); else this.picks.splice(this.picks.indexOf(m.id),1);
@@ -640,7 +652,7 @@ const Games = {
             shuffle(pool).forEach(m => {
                 const el = document.createElement('div'); el.className = 'fly-node'; el.dataset.id = m.id;
                 el.style.width=el.style.height=ns+'px';
-                el.innerHTML = `<img src="${m.image}" crossorigin="anonymous">`; 
+                el.innerHTML = `<img src="${m.image}">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
                 
                 let baseSpeed = Math.min(rect.width * 0.003, 1.8);
@@ -734,7 +746,7 @@ const Games = {
 
             [m1, m2].forEach((m, i) => {
                 const el = document.createElement('div'); el.className = 'duel-card'; el.id = `duel${i}`;
-                el.innerHTML = `<img src="${m.image}" crossorigin="anonymous"><div class="duel-gen">${getGenDisplay(m)}</div><div class="duel-name">${getRubyNameHTML(m)}</div>`;
+                el.innerHTML = `<img src="${m.image}"><div class="duel-gen">${getGenDisplay(m)}</div><div class="duel-name">${getRubyNameHTML(m)}</div>`;
                 el.onclick = () => {
                     if(!this.isActive) return; this.isActive=false; c.querySelectorAll('.duel-card').forEach(x=>x.classList.add('revealed')); 
                     if((i===0&&m1.genNum<m2.genNum)||(i===1&&m2.genNum<m1.genNum)) { el.classList.add('correct'); App.addScore(600, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); }
