@@ -70,7 +70,6 @@ async function loadData() {
         const mRaw = await mRes.json();
         langs = await lRes.json();
         membersDB = normalizeMembers(mRaw);
-        preloadImages(); // 確保背景下載圖片
         App.init();
     } catch (err) {
         console.error("Data Load Error:", err);
@@ -130,11 +129,13 @@ function applyLang() {
             const gameObj = gameList.find(g => g.id === currentGameId);
             if (gameObj && document.getElementById('gameTitleHint')) {
                 document.getElementById('gameTitleHint').textContent = `${getGameName(gameObj)} - ${App.round}/${App.maxRounds}`;
-                document.getElementById('gameInstruction').textContent = langs[currentLang]['inst_' + currentGameId];
+                document.getElementById('gameInstruction').textContent = langs[currentLang]['inst_' + currentGameId] || "";
             }
         }
     }
     
+    // 更新說明視窗內容
+    populateInstructionsModal();
     populateMemberSelector(); 
 
     const resultView = document.getElementById('view-result');
@@ -145,6 +146,17 @@ function applyLang() {
             if (shareBtn) shareBtn.textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
         }, 10);
     }
+}
+
+function populateInstructionsModal() {
+    const list = document.getElementById('allInstructionsList');
+    if (!list) return;
+    list.innerHTML = '';
+    gameList.forEach(g => {
+        const name = langs[currentLang]['gn_' + g.id] || g.id;
+        const inst = langs[currentLang]['inst_' + g.id] || "";
+        list.innerHTML += `<div style="margin-bottom: 10px;"><b>[${name}]</b><br><span style="color:var(--text-sec);">${inst}</span></div>`;
+    });
 }
 
 function getDisplayName(member) {
@@ -164,7 +176,6 @@ function getRubyNameHTML(member) {
 function getGameName(g) { return langs[currentLang] ? langs[currentLang]['gn_' + g.id] : g.id; }
 function getShortName(g) { return langs[currentLang] ? langs[currentLang]['gs_' + g.id] : g.id; }
 
-// 加入年份顯示
 function getGenDisplay(member) { 
     const year = getGenYear(member);
     return year ? `${member.genString} (${year})` : member.genString;
@@ -222,17 +233,38 @@ function drawInfoGraphicText(ctx, startX, startY, textArray) {
 const App = {
     mode: '', queue: [], currentQIdx: 0, round: 0, maxRounds: 5, score: 0,
     activeGame: null, animFrame: null, timerStart: 0, timeLimit: 0, difficulty: 1,
-    delayTimeout: null, lastTarget: null,
+    delayTimeout: null, lastTarget: null, lastTime: 0,
 
     init() {
         detectLang();
         populateMemberSelector();
+        populateInstructionsModal();
         document.getElementById('btnHome').onclick = () => this.goHome();
         
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('lb')) {
             try { leaderboard = JSON.parse(decodeURIComponent(escape(atob(urlParams.get('lb'))))); this.renderLeaderboard(); } catch(e) {}
         }
+    },
+
+    startGameFlow() {
+        // UI 流程：首頁 -> 隱藏下載圖 -> 教學 -> 模式選單
+        document.getElementById('view-intro').classList.add('hidden');
+        document.getElementById('loading-screen').classList.remove('hidden');
+        
+        preloadImages();
+
+        setTimeout(() => {
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.remove('hidden');
+            document.getElementById('view-dashboard').classList.add('dashboard-blurred');
+            document.getElementById('instructionModal').classList.remove('hidden');
+        }, 2000);
+    },
+
+    closeInstructions() {
+        document.getElementById('instructionModal').classList.add('hidden');
+        document.getElementById('view-dashboard').classList.remove('dashboard-blurred');
     },
 
     renderLeaderboard() {
@@ -290,7 +322,6 @@ const App = {
         document.querySelectorAll('#view-game > div').forEach(div => div.classList.add('hidden'));
         document.getElementById(`container-${gId}`).classList.remove('hidden');
         
-        // 顯示指示
         document.getElementById('gameInstruction').textContent = langs[currentLang]['inst_' + gId] || "";
         this.nextRound();
     },
@@ -310,15 +341,23 @@ const App = {
 
     startTimer() {
         if(this.mode === '') return;
-        this.timerStart = performance.now(); this.activeGame.isActive = true;
+        this.timerStart = performance.now(); 
+        this.lastTime = this.timerStart; // 初始化 delta time
+        this.activeGame.isActive = true;
         const tf = document.getElementById('globalTimerFill'); tf.parentElement.classList.remove('timer-danger');
+        
         const loop = () => {
             if (!this.activeGame.isActive) return;
-            const p = (performance.now() - this.timerStart) / this.timeLimit;
+            const now = performance.now();
+            const dt = now - this.lastTime;
+            this.lastTime = now;
+            
+            const p = (now - this.timerStart) / this.timeLimit;
             if (p >= 1) { tf.style.transform = `scaleX(0)`; this.activeGame.onTimeOut(); return; }
             tf.style.transform = `scaleX(${1 - p})`;
             if (p > 0.7) tf.parentElement.classList.add('timer-danger'); else tf.parentElement.classList.remove('timer-danger');
-            if (this.activeGame.onFrame) this.activeGame.onFrame(p);
+            
+            if (this.activeGame.onFrame) this.activeGame.onFrame(p, dt);
             this.animFrame = requestAnimationFrame(loop);
         };
         this.animFrame = requestAnimationFrame(loop);
@@ -446,6 +485,22 @@ const App = {
         }
     },
 
+    copyLink() {
+        let shareUrl = window.location.href.split('?')[0];
+        if (this.mode === 'classic') {
+            const pName = document.getElementById('playerName') ? document.getElementById('playerName').value.trim() : '';
+            const name = pName || 'Anonymous';
+            const tempLb = leaderboard.concat([{n:name, s:this.score}]);
+            const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(tempLb.sort((a,b)=>b.s-a.s).slice(0,10)))));
+            shareUrl += '?lb=' + b64;
+        }
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            alert(langs[currentLang].msg_copied || "Copied!");
+        }).catch(err => {
+            console.error('Copy failed', err);
+        });
+    },
+
     shareToX() {
         let shareUrl = window.location.href.split('?')[0];
         const pName = document.getElementById('playerName') ? document.getElementById('playerName').value.trim() : '';
@@ -477,8 +532,7 @@ const App = {
         document.getElementById('btnHome').classList.add('hidden');
         document.getElementById('gameTitleHint').classList.add('hidden');
         document.getElementById('gameInstruction').classList.add('hidden');
-        document.getElementById('view-dashboard').classList.remove('hidden');
-        document.getElementById('view-dashboard').classList.remove('dashboard-blurred');
+        document.getElementById('view-intro').classList.remove('hidden'); // 回到 intro 而不是 dashboard
     }
 };
 
@@ -529,13 +583,11 @@ const Games = {
                     c.querySelectorAll('.sort-card.selected').forEach(x=>x.querySelector('.sort-badge').textContent = this.picks.indexOf(x.dataset.id) + 1);
                     if(this.picks.length===4) {
                         this.isActive = false; 
-                        
                         if(this.picks.every((id,i)=>id===this.correctIds[i])) { 
                             c.querySelectorAll('.sort-card').forEach(x=>{x.classList.add('revealed'); x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;});
                             c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('correct'));
                             App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); 
                         } else { 
-                            // 答錯邏輯修正：顯示正確答案然後下一關
                             c.querySelectorAll('.sort-card').forEach(x=>{
                                 x.classList.add('wrong', 'revealed');
                                 x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;
@@ -574,8 +626,8 @@ const Games = {
                 el.innerHTML = `<img src="${m.image}" crossorigin="anonymous">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
                 
-                // 大 Mon 速度限制再下調
-                let baseSpeed = Math.min(rect.width * 0.003, 1.8);
+                // 完全修復速度問題：設定極限與乘數
+                let baseSpeed = Math.min(rect.width * 0.003, 2.2);
                 let s = baseSpeed * (Math.random() * 0.5 + 0.8) * App.difficulty;
                 
                 el.style.transform = `translate(${x}px, ${y}px)`;
@@ -591,9 +643,17 @@ const Games = {
                 }; c.appendChild(el); this.nodes.push({el, x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, size:ns});
             });
         }, 
-        onFrame() {
+        onFrame(p, dt) {
             const rect = document.getElementById('container-find').getBoundingClientRect();
-            this.nodes.forEach(n => { n.x+=n.vx; n.y+=n.vy; if(n.x<=0||n.x+n.size>=rect.width) n.vx*=-1; if(n.y<=0||n.y+n.size>=rect.height) n.vy*=-1; n.el.style.transform = `translate(${n.x}px, ${n.y}px)`; });
+            // 時間補償引擎：以 60FPS (16.66ms) 為基準，消除高更新率螢幕的差異
+            const timeScale = dt / 16.66;
+            this.nodes.forEach(n => { 
+                n.x += n.vx * timeScale; 
+                n.y += n.vy * timeScale; 
+                if(n.x<=0||n.x+n.size>=rect.width) n.vx*=-1; 
+                if(n.y<=0||n.y+n.size>=rect.height) n.vy*=-1; 
+                n.el.style.transform = `translate(${n.x}px, ${n.y}px)`; 
+            });
         }, 
         onTimeOut() { document.getElementById('container-find').classList.add('dimmed'); this.nodes.find(n=>n.el.dataset.id===this.target.id).el.classList.add('correct'); App.roundEndDelay(2000); }
     },
@@ -616,8 +676,8 @@ const Games = {
             let distractors = shuffle(validPool).slice(0,3);
             let pool = shuffle([this.target, ...distractors]);
             
-            // 支援無限多種顏色展示 (沙穂 3色)
-            cDisplay.innerHTML = this.target.colorsArray.map(c => `<div class="color-chunk" style="background-color:${c};"></div>`).join('');
+            // 支援沙穂等多色成員，加入白框分隔
+            cDisplay.innerHTML = this.target.colorsArray.map(c => `<div class="color-chunk" style="background-color:${c}; border: 3px solid #fff; border-radius: 12px; box-shadow: inset 0 0 10px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.1);"></div>`).join('');
             
             pool.forEach(m => {
                 const b = document.createElement('button'); b.className = 'opt-btn'; b.dataset.id = m.id; b.innerHTML = getRubyNameHTML(m);
@@ -666,10 +726,10 @@ const Games = {
                     if(!this.isActive) return; this.isActive=false; c.querySelectorAll('.duel-card').forEach(x=>x.classList.add('revealed')); 
                     if((i===0&&m1.genNum<m2.genNum)||(i===1&&m2.genNum<m1.genNum)) { el.classList.add('correct'); App.addScore(600, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); }
                     else { el.classList.add('wrong'); c.style.animation='shake 0.4s'; document.getElementById(`duel${i===0?1:0}`).classList.add('correct'); }
-                    App.roundEndDelay(2500);
+                    App.roundEndDelay(1500);
                 }; c.appendChild(el);
             });
-        }, onTimeOut() { document.getElementById('container-duel').querySelectorAll('.duel-card').forEach(c=>c.classList.add('wrong', 'revealed')); App.roundEndDelay(2000); }
+        }, onTimeOut() { document.getElementById('container-duel').querySelectorAll('.duel-card').forEach(c=>c.classList.add('wrong', 'revealed')); App.roundEndDelay(1500); }
     },
     smile: {
         isActive: false, mx: 50, my: 50, vx: 0.5, vy: 0.5, baseMask: 65,
