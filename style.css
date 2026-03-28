@@ -1,6 +1,40 @@
 :root { --bg-1: #e0eafc; --bg-2: #cfdef3; --bg-3: #FFB6C1; --bg-4: #f8bbd0; --primary: #FF4081; --text-main: #2C3E50; --text-sec: #7F8C8D; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: 'Noto Sans JP', sans-serif; }
 body { margin: 0; background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), var(--bg-3), var(--bg-4)); background-size: 400% 400%; animation: gradBG 20s ease infinite; height: 100dvh; color: var(--text-main); overflow: hidden; display: flex; flex-direction: column; }
+/* ==========================================
+   防護罩：防止反白、拖曳與長按選單
+========================================== */
+
+/* 1. 封鎖全網頁的文字反白 (Highlight) 與 iOS 長按選單 */
+body {
+    -webkit-user-select: none; /* Safari */
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* IE10+/Edge */
+    user-select: none; /* Standard */
+    -webkit-touch-callout: none; /* 防止 iOS 彈出「複製/儲存」選單 */
+}
+
+/* 2. 封鎖所有圖片的拖曳 (Drag) 鬼影 */
+img {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+}
+
+/* 3. 例外處理 A：確保玩家輸入名字的 Input 框仍然可以正常打字和反白 */
+input, textarea {
+    -webkit-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+}
+
+/* 4. 例外處理 B：確保「長按下載」的戰績圖不受限制，否則玩家會 Save 唔到圖！ */
+#exportImgDisplay {
+    -webkit-touch-callout: default;
+    pointer-events: auto;
+}
 
 @keyframes gradBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
