@@ -29,46 +29,71 @@
 
     <div class="timer-bg hidden" id="globalTimerBar"><div class="timer-fill" id="globalTimerFill"></div></div>
     <div style="text-align:center; font-weight:900; color:var(--primary); margin-bottom:2px; font-size: 1.1rem;" id="gameTitleHint" class="hidden"></div>
-    <div style="text-align:center; font-weight:700; color:var(--text-sec); margin-bottom:12px; font-size: 0.8rem;" id="gameInstruction" class="hidden"></div>
+    <div style="text-align:center; font-weight:700; color:var(--text-sec); margin-bottom:12px; font-size: 0.8rem; padding: 0 10px;" id="gameInstruction" class="hidden"></div>
 
-    <main id="view-dashboard" class="stage-active">
-        <h1 style="color: var(--primary); text-align: center; font-size: 2.2rem; margin: 0 0 15px; text-shadow: 0 4px 10px rgba(0,0,0,0.05);" data-i18n="app_title">AKB48 粉絲入門挑戰</h1>
+    <main id="view-intro" class="flex-center stage-active" style="flex:1; flex-direction:column;">
+        <h1 class="glow-text-breathe" style="color: var(--primary); text-align: center; font-size: 2.5rem; margin: 0 0 5px;" data-i18n="app_title">AKB48 粉絲入門挑戰</h1>
+        <p style="color: var(--text-main); font-weight: 700; font-size: 1.1rem; margin-bottom: 40px;" data-i18n="app_subtitle">測測你的粉絲純度！</p>
         
+        <div style="display:flex; align-items:center; gap: 15px;">
+            <span class="blink" style="font-size: 2rem;">👉</span>
+            <button class="btn glow-box-breathe float-anim" style="font-size: 1.2rem; padding: 15px 30px; letter-spacing: 2px;" onclick="App.startGameFlow()" data-i18n="btn_start_game">GAME START</button>
+            <span class="blink" style="font-size: 2rem;">👈</span>
+        </div>
+    </main>
+
+    <div id="loading-screen" class="hidden flex-center" style="flex:1; flex-direction:column;">
+        <div class="glow-text-breathe" style="font-size: 3rem; font-weight: 900; color: var(--primary);">AKB48</div>
+        <div style="margin-top: 10px; font-weight: 700; color: var(--text-sec);" data-i18n="loading">載入中...</div>
+    </div>
+
+    <main id="view-dashboard" class="hidden" style="flex:1; flex-direction:column; align-items:center; padding: 20px; overflow-y:auto;">
+        <h2 class="glow-text-breathe" style="color: var(--primary); text-align: center; margin: 0 0 20px; font-size: 2rem;" data-i18n="select_mode">選擇模式</h2>
         <div class="dashboard-menu">
-            <div class="mode-card glass-panel" onclick="App.startMode('classic')">
+            <div class="mode-card glass-panel glow-box-breathe float-anim" style="animation-delay: 0s;" onclick="App.startMode('classic')">
                 <h2 data-i18n="mode_classic">🏆 經典挑戰</h2>
                 <p data-i18n="desc_classic">挑戰 8 項小遊戲，和朋友比拼分數！</p>
             </div>
-            <div class="mode-card glass-panel" onclick="App.showModal('casual')">
+            <div class="mode-card glass-panel float-anim" style="animation-delay: 0.2s;" onclick="App.showModal('casual')">
                 <h2 data-i18n="mode_casual">☕ 自由探索</h2>
                 <p data-i18n="desc_casual">選擇單一遊戲輕鬆遊玩。</p>
             </div>
-            <div class="mode-card glass-panel" onclick="App.showModal('custom')">
+            <div class="mode-card glass-panel float-anim" style="animation-delay: 0.4s;" onclick="App.showModal('custom')">
                 <h2 data-i18n="mode_custom">🛠️ 自訂組合</h2>
                 <p data-i18n="desc_custom">挑選你喜歡的遊戲清單。</p>
             </div>
-            <div class="mode-card glass-panel" onclick="App.showModal('challenge')">
+            <div class="mode-card glass-panel float-anim" style="animation-delay: 0.6s;" onclick="App.showModal('challenge')">
                 <h2 data-i18n="mode_challenge">🔥 極限生存</h2>
                 <p data-i18n="desc_challenge">單一遊戲 50 回合耐久戰！</p>
             </div>
         </div>
 
-        <div class="leaderboard-box hidden" id="lbContainer">
+        <div class="leaderboard-box" id="lbContainer" style="margin-top: 20px;">
             <h3 class="leaderboard-title" data-i18n="lb_title">🔥 挑戰者排行榜</h3>
             <ul class="lb-list" id="lbList"></ul>
         </div>
     </main>
 
+    <div class="modal-overlay flex-center hidden" id="instructionModal">
+        <div class="glass-panel" style="padding: 20px; width: 90%; max-width: 450px; position: relative; max-height: 80vh; display: flex; flex-direction: column;">
+            <button style="position: absolute; top: 10px; right: 15px; background: transparent; border: none; font-size: 1.5rem; font-weight: 900; color: var(--text-sec); cursor: pointer;" onclick="App.closeInstructions()">✕</button>
+            <h2 style="color: var(--primary); text-align: center; margin-top: 0;" data-i18n="inst_title">遊戲操作說明</h2>
+            
+            <div style="flex: 1; overflow-y: auto; padding-right: 10px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: var(--text-main);" id="allInstructionsList">
+                </div>
+            
+            <button class="btn btn-outline" style="width: 100%; flex-shrink: 0;" onclick="App.closeInstructions()" data-i18n="btn_skip">跳過</button>
+        </div>
+    </div>
+
     <main id="view-game" class="game-wrapper hidden">
         <div id="container-mem" class="mem-grid hidden"></div>
         <div id="container-sort" class="sort-grid hidden"></div>
         <div id="container-find" class="fly-arena hidden"></div>
-        
         <div id="container-color" class="hidden" style="width:100%; display:flex; flex-direction:column; flex:1;">
             <div class="color-display glass-panel" id="colorDisplay"></div>
             <div class="opt-grid" id="colorOpts" style="width: 100%;"></div>
         </div>
-
         <div id="container-macro" class="hidden" style="width:100%; display:flex; flex-direction:column; flex:1;">
             <div class="macro-view"><img id="macroImg" class="macro-img"><div class="macro-scan"></div></div>
             <div class="opt-grid" id="macroOpts"></div>
@@ -96,8 +121,9 @@
             <input type="text" id="playerName" class="name-input hidden" maxlength="12" placeholder="輸入名字參與排行榜" data-i18n-placeholder="ph_name" oninput="App.generateResultCanvas()">
             
             <div class="row">
-                <button class="btn" style="flex: 1;" onclick="App.downloadResult()">📥 <span data-i18n="btn_dl">下載圖</span></button>
-                <button class="btn" style="flex: 1.5; background: #000;" onclick="App.shareToX()">𝕏 <span id="btnShareText" data-i18n="btn_share_lb">加入排行並分享</span></button>
+                <button class="btn" style="flex: 1.2;" onclick="App.downloadResult()">📥 <span data-i18n="btn_dl">下載</span></button>
+                <button class="btn" style="flex: 1;" onclick="App.copyLink()">📋 <span data-i18n="btn_copy">連結</span></button>
+                <button class="btn" style="flex: 1.2; background: #000;" onclick="App.shareToX()">𝕏 <span id="btnShareText" data-i18n="btn_share">分享</span></button>
             </div>
             <button class="btn btn-outline" style="width: 100%;" onclick="App.goHome()">🏠 <span data-i18n="btn_back_home">回主選單</span></button>
         </div>
