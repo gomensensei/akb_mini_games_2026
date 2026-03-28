@@ -5,14 +5,14 @@ body { margin: 0; background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), 
 @keyframes gradBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
 
-/* 新增動畫特效 */
+/* 修復 1: 動畫分開處理，避免 transform 互相覆蓋 */
 @keyframes glowBreathe {
-    0% { box-shadow: 0 0 10px rgba(255,64,129,0.3); transform: scale(1); }
-    100% { box-shadow: 0 0 25px rgba(255,64,129,0.7); transform: scale(1.02); }
+    0% { box-shadow: 0 0 10px rgba(255,64,129,0.3); }
+    100% { box-shadow: 0 0 30px rgba(255,64,129,0.8); }
 }
 @keyframes glowTextBreathe {
-    0% { text-shadow: 0 0 5px rgba(255,64,129,0.5); transform: scale(1); }
-    100% { text-shadow: 0 0 20px rgba(255,64,129,0.9); transform: scale(1.05); }
+    0% { text-shadow: 0 0 5px rgba(255,64,129,0.4); }
+    100% { text-shadow: 0 0 20px rgba(255,64,129,0.9); }
 }
 @keyframes floatAnim {
     0%, 100% { transform: translateY(0); }
@@ -22,8 +22,12 @@ body { margin: 0; background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), 
 
 .glow-text-breathe { animation: glowTextBreathe 2s infinite alternate; }
 .glow-box-breathe { animation: glowBreathe 2s infinite alternate; }
-.float-anim { animation: floatAnim 3s ease-in-out infinite; }
+.float-anim { animation: floatAnim 3s ease-in-out infinite; will-change: transform; }
 .blink { animation: blink 1.5s infinite; }
+
+/* 標題與副標題 CSS (修復手機版爆框) */
+.intro-title { color: var(--primary); text-align: center; font-size: 2.5rem; margin: 0 0 5px; line-height: 1.2; word-break: keep-all;}
+.intro-subtitle { color: var(--text-main); font-weight: 700; font-size: 1.1rem; margin-bottom: 40px; text-align: center; }
 
 .flex-center { display: flex; justify-content: center; align-items: center; }
 .hidden { display: none !important; }
@@ -49,7 +53,6 @@ body { margin: 0; background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), 
 .mode-card { width: 100%; padding: 15px; text-align: center; cursor: pointer; transition: transform 0.2s; background: rgba(255,255,255,0.8);}
 .mode-card h2 { margin: 0 0 5px; color: var(--primary); font-size: 1.2rem;}
 .mode-card p { margin: 0; font-size: 0.85rem; color: var(--text-sec); font-weight: 700;}
-.mode-card:hover { transform: translateY(-3px) scale(1.02); }
 
 .leaderboard-box { width: 100%; max-width: 360px; background: rgba(255,255,255,0.6); border-radius: 15px; padding: 12px; flex-shrink: 0; margin: 0 auto;}
 .leaderboard-title { text-align: center; color: var(--text-main); font-weight: 900; margin: 0 0 8px; font-size: 1rem; }
@@ -83,7 +86,6 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .mem-nickname { color: var(--primary); font-size: 9px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin-top: 1px;}
 .mem-card.matched .mem-front { border-color: #4CAF50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.6); }
 
-/* 修復前輩排序排版 (Flex 流水佈局，防止 Crop) */
 .sort-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; flex: 1; max-height: 55vh; }
 .sort-card { border-radius: 16px; overflow: hidden; border: 3px solid transparent; background: #fff; cursor: pointer; display: flex; flex-direction: column; position: relative;}
 .sort-card.selected { border-color: #2196F3; }
@@ -117,7 +119,6 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 
 .duel-arena { display: flex; gap: 10px; flex: 1; align-items: stretch; position: relative; max-height: 55vh; }
 .duel-vs { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 44px; height: 44px; background: var(--primary); color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; z-index: 5; border: 2px solid #fff; animation: pulse 1s infinite alternate; }
-@keyframes pulse { to { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 15px var(--primary); } }
 .duel-card { flex: 1; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer; border: 4px solid transparent; position: relative; transition: 0.3s; background:#fff;}
 .duel-card img { width: 100%; flex: 1 1 auto; object-fit: cover; min-height:0;}
 .duel-gen { width: 100%; background: rgba(0,0,0,0.8); color: #fff; text-align: center; font-size: 12px; padding: 4px; font-weight: 700; flex: 0 0 auto; height: 0; opacity: 0; transition: 0.3s; overflow: hidden;}
@@ -137,8 +138,10 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .modal-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.6); backdrop-filter: blur(15px); z-index: 100; flex-direction: column; padding: 20px;}
 .app-footer { text-align: center; padding: 10px; font-size: 0.75rem; color: var(--text-sec); font-weight: 700; flex-shrink: 0; line-height: 1.4;}
 
-/* 手機版適配微調 */
+/* 手機版適配修復 */
 @media (max-width: 480px) {
+    .intro-title { font-size: 1.8rem; }
+    .intro-subtitle { font-size: 0.95rem; margin-bottom: 30px; }
     .btn { font-size: 0.85rem; padding: 10px 14px;}
     .mode-card h2 { font-size: 1.1rem; }
     .score-board { font-size: 0.9rem; }
