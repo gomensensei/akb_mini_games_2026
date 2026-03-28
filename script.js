@@ -56,11 +56,18 @@ function normalizeMembers(rawList) {
     });
 }
 
-function preloadImages() {
-    membersDB.forEach(m => {
-        const img = new Image();
-        img.src = m.image;
-    });
+// 非同步批量載入圖片，防止阻塞網絡 (每次載入 6 張)
+async function preloadImagesBatch() {
+    const batchSize = 6;
+    for (let i = 0; i < membersDB.length; i += batchSize) {
+        const batch = membersDB.slice(i, i + batchSize);
+        await Promise.all(batch.map(m => new Promise(res => {
+            const img = new Image();
+            img.onload = res;
+            img.onerror = res; // 即使死圖都繼續，防止成條 Queue 卡死
+            img.src = m.image;
+        })));
+    }
 }
 
 async function loadData() {
@@ -134,7 +141,6 @@ function applyLang() {
         }
     }
     
-    // 更新說明視窗內容
     populateInstructionsModal();
     populateMemberSelector(); 
 
@@ -241,6 +247,9 @@ const App = {
         populateInstructionsModal();
         document.getElementById('btnHome').onclick = () => this.goHome();
         
+        // 靜靜地喺背景下載圖片，唔阻住 User 睇首頁
+        setTimeout(() => preloadImagesBatch(), 500);
+
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('lb')) {
             try { leaderboard = JSON.parse(decodeURIComponent(escape(atob(urlParams.get('lb'))))); this.renderLeaderboard(); } catch(e) {}
@@ -248,12 +257,9 @@ const App = {
     },
 
     startGameFlow() {
-        // UI 流程：首頁 -> 隱藏下載圖 -> 教學 -> 模式選單
         document.getElementById('view-intro').classList.add('hidden');
         document.getElementById('loading-screen').classList.remove('hidden');
         
-        preloadImages();
-
         setTimeout(() => {
             document.getElementById('loading-screen').classList.add('hidden');
             document.getElementById('view-dashboard').classList.remove('hidden');
@@ -342,7 +348,7 @@ const App = {
     startTimer() {
         if(this.mode === '') return;
         this.timerStart = performance.now(); 
-        this.lastTime = this.timerStart; // 初始化 delta time
+        this.lastTime = this.timerStart; 
         this.activeGame.isActive = true;
         const tf = document.getElementById('globalTimerFill'); tf.parentElement.classList.remove('timer-danger');
         
@@ -532,7 +538,7 @@ const App = {
         document.getElementById('btnHome').classList.add('hidden');
         document.getElementById('gameTitleHint').classList.add('hidden');
         document.getElementById('gameInstruction').classList.add('hidden');
-        document.getElementById('view-intro').classList.remove('hidden'); // 回到 intro 而不是 dashboard
+        document.getElementById('view-intro').classList.remove('hidden'); 
     }
 };
 
@@ -626,8 +632,7 @@ const Games = {
                 el.innerHTML = `<img src="${m.image}" crossorigin="anonymous">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
                 
-                // 完全修復速度問題：設定極限與乘數
-                let baseSpeed = Math.min(rect.width * 0.003, 2.2);
+                let baseSpeed = Math.min(rect.width * 0.003, 1.8);
                 let s = baseSpeed * (Math.random() * 0.5 + 0.8) * App.difficulty;
                 
                 el.style.transform = `translate(${x}px, ${y}px)`;
@@ -645,7 +650,6 @@ const Games = {
         }, 
         onFrame(p, dt) {
             const rect = document.getElementById('container-find').getBoundingClientRect();
-            // 時間補償引擎：以 60FPS (16.66ms) 為基準，消除高更新率螢幕的差異
             const timeScale = dt / 16.66;
             this.nodes.forEach(n => { 
                 n.x += n.vx * timeScale; 
@@ -667,7 +671,6 @@ const Games = {
             App.lastTarget = this.target;
             const tColorsStr = [...this.target.colorsArray].sort().join(',');
             
-            // 防撞色過濾
             let validPool = membersDB.filter(m => {
                 if(m.id === this.target.id) return false;
                 return [...m.colorsArray].sort().join(',') !== tColorsStr;
@@ -676,7 +679,6 @@ const Games = {
             let distractors = shuffle(validPool).slice(0,3);
             let pool = shuffle([this.target, ...distractors]);
             
-            // 支援沙穂等多色成員，加入白框分隔
             cDisplay.innerHTML = this.target.colorsArray.map(c => `<div class="color-chunk" style="background-color:${c}; border: 3px solid #fff; border-radius: 12px; box-shadow: inset 0 0 10px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.1);"></div>`).join('');
             
             pool.forEach(m => {
