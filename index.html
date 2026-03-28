@@ -44,7 +44,7 @@
 
     <div id="loading-screen" class="hidden flex-center" style="flex:1; flex-direction:column;">
         <div class="glow-text-breathe" style="font-size: 3rem; font-weight: 900; color: var(--primary);">AKB48</div>
-        <div style="margin-top: 10px; font-weight: 700; color: var(--text-sec);" data-i18n="loading">遊戲載入中...</div>
+        <div id="loadingText" style="margin-top: 10px; font-weight: 700; color: var(--text-sec);" data-i18n="loading">遊戲載入中...</div>
     </div>
 
     <main id="view-dashboard" class="hidden" style="flex:1; flex-direction:column; align-items:center; padding: 20px; overflow-y:auto;">
@@ -79,8 +79,7 @@
             <button style="position: absolute; top: 10px; right: 15px; background: transparent; border: none; font-size: 1.5rem; font-weight: 900; color: var(--text-sec); cursor: pointer;" onclick="App.closeInstructions()">✕</button>
             <h2 style="color: var(--primary); text-align: center; margin-top: 0;" data-i18n="inst_title">遊戲操作說明</h2>
             
-            <div style="flex: 1; overflow-y: auto; padding-right: 10px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: var(--text-main);" id="allInstructionsList">
-                </div>
+            <div style="flex: 1; overflow-y: auto; padding-right: 10px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: var(--text-main);" id="allInstructionsList"></div>
             
             <button class="btn btn-outline" style="width: 100%; flex-shrink: 0;" onclick="App.closeInstructions()" data-i18n="btn_skip">了解，開始！</button>
         </div>
