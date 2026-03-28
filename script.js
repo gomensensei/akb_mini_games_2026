@@ -56,20 +56,6 @@ function normalizeMembers(rawList) {
     });
 }
 
-// 非同步批量載入圖片，防止阻塞網絡 (每次載入 6 張)
-async function preloadImagesBatch() {
-    const batchSize = 6;
-    for (let i = 0; i < membersDB.length; i += batchSize) {
-        const batch = membersDB.slice(i, i + batchSize);
-        await Promise.all(batch.map(m => new Promise(res => {
-            const img = new Image();
-            img.onload = res;
-            img.onerror = res; // 即使死圖都繼續，防止成條 Queue 卡死
-            img.src = m.image;
-        })));
-    }
-}
-
 async function loadData() {
     try {
         const [mRes, lRes] = await Promise.all([ fetch('members.json'), fetch('langs.json') ]);
@@ -247,25 +233,50 @@ const App = {
         populateInstructionsModal();
         document.getElementById('btnHome').onclick = () => this.goHome();
         
-        // 靜靜地喺背景下載圖片，唔阻住 User 睇首頁
-        setTimeout(() => preloadImagesBatch(), 500);
-
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('lb')) {
             try { leaderboard = JSON.parse(decodeURIComponent(escape(atob(urlParams.get('lb'))))); this.renderLeaderboard(); } catch(e) {}
         }
     },
 
-    startGameFlow() {
+    // 🚀 真・非同步預載引擎 (解決死圖與 CORS 問題)
+    async startGameFlow() {
         document.getElementById('view-intro').classList.add('hidden');
         document.getElementById('loading-screen').classList.remove('hidden');
         
-        setTimeout(() => {
-            document.getElementById('loading-screen').classList.add('hidden');
-            document.getElementById('view-dashboard').classList.remove('hidden');
-            document.getElementById('view-dashboard').classList.add('dashboard-blurred');
-            document.getElementById('instructionModal').classList.remove('hidden');
-        }, 2000);
+        const progressEl = document.getElementById('loadingText');
+        const baseText = langs[currentLang].loading || "遊戲載入中...";
+        if (progressEl) progressEl.textContent = baseText + " (0%)";
+
+        let loaded = 0;
+        const total = membersDB.length;
+        
+        const loadPromises = membersDB.map(m => new Promise(resolve => {
+            const img = new Image();
+            img.crossOrigin = "anonymous"; // 關鍵：匹配遊戲內設定，防止重複下載
+            
+            const onLoadOrError = () => {
+                loaded++;
+                if (progressEl) {
+                    const percent = Math.floor((loaded / total) * 100);
+                    progressEl.textContent = `${baseText} (${percent}%)`;
+                }
+                resolve();
+            };
+            
+            img.onload = onLoadOrError;
+            img.onerror = onLoadOrError; 
+            img.src = m.image;
+        }));
+
+        // 設置 8 秒終極防護，防止差網絡無限卡死
+        const timeout = new Promise(resolve => setTimeout(resolve, 8000));
+        await Promise.race([Promise.all(loadPromises), timeout]);
+
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('view-dashboard').classList.remove('hidden');
+        document.getElementById('view-dashboard').classList.add('dashboard-blurred');
+        document.getElementById('instructionModal').classList.remove('hidden');
     },
 
     closeInstructions() {
@@ -755,8 +766,12 @@ const Games = {
                 }; opts.appendChild(b);
             });
         }, 
-        onFrame(p) {
-            this.mx += this.vx; this.my += this.vy; if(this.mx<20||this.mx>80) this.vx*=-1; if(this.my<20||this.my>80) this.vy*=-1;
+        onFrame(p, dt) {
+            const timeScale = dt / 16.66;
+            this.mx += this.vx * timeScale; 
+            this.my += this.vy * timeScale; 
+            if(this.mx<20||this.mx>80) this.vx*=-1; 
+            if(this.my<20||this.my>80) this.vy*=-1;
             const v = document.getElementById('smileView'); v.style.setProperty('--mask-x', this.mx+'%'); v.style.setProperty('--mask-y', this.my+'%');
             v.style.setProperty('--mask-size', `${this.baseMask * (1 - (p * 0.3))}px`);
         }, 
