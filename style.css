@@ -15,7 +15,7 @@ body { margin: 0; background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), 
 .lang-select { padding: 4px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.5); font-weight: 700; outline: none; color: var(--text-main); max-width: 120px;}
 .score-board { font-size: 1rem; font-weight: 900; color: var(--primary); background: rgba(255,255,255,0.9); padding: 4px 12px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);}
 
-.timer-bg { width: calc(100% - 30px); height: 8px; background: rgba(255,255,255,0.5); border-radius: 4px; overflow: hidden; margin: 0 15px 10px; flex-shrink: 0; }
+.timer-bg { width: calc(100% - 30px); height: 8px; background: rgba(255,255,255,0.5); border-radius: 4px; overflow: hidden; margin: 0 15px 5px; flex-shrink: 0; }
 .timer-fill { height: 100%; background: linear-gradient(90deg, #FFB6C1, var(--primary)); width: 100%; transform-origin: left; will-change: transform; }
 .timer-danger { background: #F44336; }
 
@@ -44,7 +44,6 @@ body { margin: 0; background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), 
 
 .social-panel { width: 100%; display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin: 0 auto;}
 .name-input { width: 100%; padding: 10px 14px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.8); font-size: 0.95rem; font-weight: 700; outline: none; text-align: center; color: var(--text-main);}
-/* 修復 1：確保按鈕橫列置中並平均分配空間 */
 .social-panel .row { display: flex; justify-content: center; gap: 10px; width: 100%; }
 
 ruby { ruby-align: center; }
@@ -52,7 +51,6 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 
 .game-wrapper { flex: 1; display: flex; flex-direction: column; max-width: 600px; margin: 0 auto; width: 100%; padding: 0 15px 15px; position: relative; max-height: calc(100dvh - 120px); }
 
-/* 修復 2：Mem-grid 重新排列，保證圖片與文字不互擠 */
 .mem-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; flex: 1; perspective: 1000px; max-height: 55vh; }
 .mem-card { position: relative; width: 100%; height: 100%; cursor: pointer; }
 .mem-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.4s ease-out; }
@@ -60,8 +58,8 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .mem-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 12px; overflow: hidden; }
 .mem-back { background: rgba(255,255,255,0.6); display: flex; justify-content: center; align-items: center; font-weight: 900; color: rgba(255,64,129,0.6); border: 2px solid #fff;}
 .mem-front { transform: rotateY(180deg); background: #fff; border: 3px solid transparent; display: flex; flex-direction: column; justify-content: space-between; }
-.mem-front img { width: 100%; height: calc(100% - 32px); object-fit: cover; }
-.mem-name-wrap { height: 32px; flex-shrink: 0; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.1; padding: 2px; }
+.mem-front img { width: 100%; height: calc(100% - 35px); object-fit: cover; }
+.mem-name-wrap { height: 35px; flex-shrink: 0; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.1; padding: 2px; }
 .mem-name { font-size: 10px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;}
 .mem-nickname { color: var(--primary); font-size: 9px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin-top: 1px;}
 .mem-card.matched .mem-front { border-color: #4CAF50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.6); }
@@ -72,9 +70,9 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .sort-card img { width: 100%; flex: 1; object-fit: cover; }
 .sort-badge { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: #2196F3; color: #fff; font-weight: 900; display: flex; justify-content: center; align-items: center; opacity: 0; transform: scale(0); transition: 0.2s; font-size: 14px;}
 .sort-card.selected .sort-badge { opacity: 1; transform: scale(1); }
-.sort-gen { position: absolute; bottom: 35px; width: 100%; background: rgba(0,0,0,0.7); color: #fff; text-align: center; font-size: 11px; padding: 4px; opacity: 0; transition: 0.3s; font-weight: 700;}
+.sort-gen { position: absolute; bottom: 42px; width: 100%; background: rgba(0,0,0,0.7); color: #fff; text-align: center; font-size: 11px; padding: 4px; opacity: 0; transition: 0.3s; font-weight: 700;}
 .sort-card.revealed .sort-gen { opacity: 1; }
-.sort-name { height: 35px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; background: #fff; padding: 0 4px; }
+.sort-name { min-height: 42px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; background: #fff; padding: 4px; text-align: center;}
 .sort-card.correct { border-color: #4CAF50; } .sort-card.wrong { border-color: #F44336; }
 
 .fly-arena { flex: 1; position: relative; background: rgba(255,255,255,0.3); border-radius: 20px; overflow: hidden; max-height: 55vh; }
@@ -83,8 +81,9 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .fly-node.correct { z-index: 10; transition: transform 0.5s ease-out, box-shadow 0.3s; }
 .fly-arena.dimmed .fly-node:not(.correct) { opacity: 0.2; filter: grayscale(1); pointer-events: none; transition: all 0.5s ease;}
 
-.color-display { width: 100%; max-height: 25vh; aspect-ratio: 2/1; border-radius: 20px; display: flex; overflow: hidden; margin: 0 auto 15px auto; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-.color-chunk { flex: 1; height: 100%; }
+/* 修復 4：應援色加上白框同陰影，防止全白痴埋一舊 */
+.color-display { width: 100%; max-height: 25vh; aspect-ratio: 2/1; border-radius: 20px; display: flex; gap: 8px; padding: 10px; background: rgba(255,255,255,0.8); margin: 0 auto 15px auto; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+.color-chunk { flex: 1; height: 100%; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); box-shadow: inset 0 0 10px rgba(0,0,0,0.05);}
 
 .macro-view, .smile-view, .puz-grid { width: 100%; max-width: 45vh; max-height: 45vh; aspect-ratio: 1; margin: 0 auto 15px auto; border-radius: 20px; position: relative; align-self: center;}
 .macro-view, .smile-view { background: #fff; overflow: hidden; }
@@ -104,7 +103,7 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .duel-card img { width: 100%; flex: 1; object-fit: cover; }
 .duel-gen { position: absolute; bottom: 45px; width: 100%; text-align: center; background: rgba(0,0,0,0.8); color: #fff; font-size: 12px; padding: 4px; opacity: 0; transform: translateY(10px); transition: 0.3s; font-weight: 700;}
 .duel-card.revealed .duel-gen { opacity: 1; transform: translateY(0); }
-.duel-name { height: 45px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: 900; font-size: 13px; line-height: 1.2;}
+.duel-name { min-height: 45px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: 900; font-size: 13px; line-height: 1.2; padding: 4px; text-align: center;}
 .duel-card.correct { border-color: #4CAF50; } .duel-card.wrong { border-color: #F44336; filter: grayscale(0.5);}
 
 .smile-sharp { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
@@ -119,7 +118,6 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .modal-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.6); backdrop-filter: blur(15px); z-index: 100; flex-direction: column; padding: 20px;}
 .app-footer { text-align: center; padding: 10px; font-size: 0.75rem; color: var(--text-sec); font-weight: 700; flex-shrink: 0; line-height: 1.4;}
 
-/* 修復 5：手機版 Footer 與字體更精細縮小 */
 @media (max-width: 480px) {
     .btn { font-size: 0.85rem; padding: 10px 16px;}
     .mode-card h2 { font-size: 1.1rem; }
