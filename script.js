@@ -50,24 +50,16 @@ function normalizeMembers(rawList) {
             nickname: m.nickname || "",
             genString: gStr,
             genNum: gNum,
-            image: m.img_url || m.image || m.img || m.photo || "https://placehold.co/300x400/FFB6C1/FFF",
-            colorsArray: colors
+            image: m.img_url || m.image || m.img || m.photo,
+            colorsArray: colors,
+            imgLoaded: false // 🌟 新增：每個成員自帶「存活狀態」
         };
     });
 }
 
-// 移除 CORS 標籤，讓圖片自然快取
-async function preloadImagesBatch() {
-    const batchSize = 6;
-    for (let i = 0; i < membersDB.length; i += batchSize) {
-        const batch = membersDB.slice(i, i + batchSize);
-        await Promise.all(batch.map(m => new Promise(res => {
-            const img = new Image();
-            img.onload = res;
-            img.onerror = res; 
-            img.src = m.image;
-        })));
-    }
+// 🌟 核心過濾器：遊戲只會從「圖片已成功載入」的成員中抽人！
+function getValidPool() {
+    return membersDB.filter(m => m.imgLoaded);
 }
 
 async function loadData() {
@@ -240,6 +232,7 @@ const App = {
     mode: '', queue: [], currentQIdx: 0, round: 0, maxRounds: 5, score: 0,
     activeGame: null, animFrame: null, timerStart: 0, timeLimit: 0, difficulty: 1,
     delayTimeout: null, lastTarget: null, lastTime: 0,
+    isPreloaded: false, 
 
     init() {
         detectLang();
@@ -247,44 +240,72 @@ const App = {
         populateInstructionsModal();
         document.getElementById('btnHome').onclick = () => this.goHome();
         
+        // 🌟 啟動「後台靜默重生引擎」
+        this.startBackgroundPreloader();
+
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('lb')) {
             try { leaderboard = JSON.parse(decodeURIComponent(escape(atob(urlParams.get('lb'))))); this.renderLeaderboard(); } catch(e) {}
         }
     },
 
-    // 移除了 img.crossOrigin 的設定，讓 Browser 自然處理 Cache
+    // 🌟 最狠嘅後台下載器：無間斷重試直到成功入池
+    startBackgroundPreloader() {
+        membersDB.forEach(m => {
+            const tryLoad = () => {
+                if (m.imgLoaded) return; // 成功咗就唔再理佢
+                
+                const img = new Image();
+                img.onload = () => { m.imgLoaded = true; }; // 一旦成功，自動復活加入有效名單
+                img.onerror = () => {
+                    // 如果失敗，等 4 秒後再靜靜地重試，永不放棄
+                    setTimeout(tryLoad, 4000);
+                };
+                img.src = m.image;
+            };
+            tryLoad();
+        });
+    },
+
     async startGameFlow() {
         document.getElementById('view-intro').classList.add('hidden');
         document.getElementById('loading-screen').classList.remove('hidden');
         
+        if (this.isPreloaded) {
+            this.finishLoading();
+            return;
+        }
+
         const progressEl = document.getElementById('loadingText');
         const baseText = langs[currentLang].loading || "遊戲載入中...";
-        if (progressEl) progressEl.textContent = baseText + " (0%)";
-
-        let loaded = 0;
         const total = membersDB.length;
         
-        const loadPromises = membersDB.map(m => new Promise(resolve => {
-            const img = new Image();
-            
-            const onLoadOrError = () => {
-                loaded++;
+        return new Promise(resolve => {
+            let elapsed = 0;
+            const checkInt = setInterval(() => {
+                const loadedCount = getValidPool().length; // 即時監測存活人數
+                
                 if (progressEl) {
-                    const percent = Math.floor((loaded / total) * 100);
+                    const percent = Math.floor((loadedCount / total) * 100);
                     progressEl.textContent = `${baseText} (${percent}%)`;
                 }
-                resolve();
-            };
-            
-            img.onload = onLoadOrError;
-            img.onerror = onLoadOrError; 
-            img.src = m.image;
-        }));
+                
+                elapsed += 200;
+                
+                // 開局條件：全部 Load 完，或者 (過咗 4 秒且最少有 12 人存活)
+                if (loadedCount === total || (elapsed >= 4000 && loadedCount >= 12)) {
+                    clearInterval(checkInt);
+                    this.isPreloaded = true;
+                    this.finishLoading();
+                    resolve();
+                } else if (elapsed >= 4000 && loadedCount < 12) {
+                    if (progressEl) progressEl.textContent = `網絡緩慢，等待圖片載入... (${loadedCount}/${total})`;
+                }
+            }, 200);
+        });
+    },
 
-        const timeout = new Promise(resolve => setTimeout(resolve, 10000));
-        await Promise.race([Promise.all(loadPromises), timeout]);
-
+    finishLoading() {
         document.getElementById('loading-screen').classList.add('hidden');
         document.getElementById('view-dashboard').classList.remove('hidden');
         document.getElementById('view-dashboard').classList.add('dashboard-blurred');
@@ -566,14 +587,15 @@ const App = {
 };
 
 // ==========================================
-// 遊戲邏輯實作 (移除所有 crossorigin 屬性)
+// 遊戲邏輯實作 (所有圖片只從 getValidPool 取出，徹底告別死圖與 onerror)
 // ==========================================
 const Games = {
     mem: {
         isActive: false, pairs: 0, flipped: [], lock: false,
         setup() {
             const c = document.getElementById('container-mem'); c.innerHTML = ''; this.pairs = 0; this.flipped = []; this.lock = false;
-            let m = shuffle(membersDB).slice(0, 8); let cards = shuffle([...m, ...m]);
+            let valid = getValidPool();
+            let m = shuffle(valid).slice(0, 8); let cards = shuffle([...m, ...m]);
             cards.forEach(mem => {
                 const el = document.createElement('div'); el.className = 'mem-card'; el.dataset.id = mem.id;
                 el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}"><div class="mem-name-wrap"><div class="mem-name">${getRubyNameHTML(mem)}</div><div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
@@ -599,7 +621,8 @@ const Games = {
         isActive: false, picks: [], correctIds: [],
         setup() {
             const c = document.getElementById('container-sort'); c.innerHTML = ''; this.picks = [];
-            let pool = shuffle(membersDB), opts = [], used = new Set();
+            let valid = getValidPool();
+            let pool = shuffle(valid), opts = [], used = new Set();
             for(let m of pool) { if(!used.has(m.genNum)) { opts.push(m); used.add(m.genNum); } if(opts.length===4) break; }
             this.correctIds = [...opts].sort((a,b)=>a.genNum-b.genNum).map(m=>m.id);
             App.lastTarget = opts.find(m => m.id === this.correctIds[0]);
@@ -641,11 +664,13 @@ const Games = {
         isActive: false, nodes: [], target: null,
         setup() {
             const c = document.getElementById('container-find'); c.innerHTML = ''; c.classList.remove('dimmed'); this.nodes = [];
-            this.target = membersDB[Math.floor(Math.random()*membersDB.length)]; App.lastTarget = this.target;
+            
+            let valid = getValidPool();
+            this.target = valid[Math.floor(Math.random() * valid.length)]; App.lastTarget = this.target;
             const hintStr = getRubyNameHTML(this.target) + (this.target.nickname ? ` (${this.target.nickname})` : "");
             document.getElementById('gameTitleHint').innerHTML = `${langs[currentLang].find_hint} <span style="color:#2196F3">${hintStr}</span>`;
             
-            let pool = [this.target]; while(pool.length<20) pool.push(membersDB[Math.floor(Math.random()*membersDB.length)]);
+            let pool = [this.target]; while(pool.length<20) pool.push(valid[Math.floor(Math.random()*valid.length)]);
             const rect = c.getBoundingClientRect() || {width:300, height:300}; 
             const ns = window.innerWidth > 768 ? 90 : 65; 
             
@@ -690,14 +715,17 @@ const Games = {
             const cDisplay = document.getElementById('colorDisplay'), opts = document.getElementById('colorOpts'); 
             cDisplay.innerHTML = ''; opts.innerHTML = '';
             
-            this.target = membersDB[Math.floor(Math.random() * membersDB.length)];
+            let valid = getValidPool();
+            this.target = valid[Math.floor(Math.random() * valid.length)];
             App.lastTarget = this.target;
             const tColorsStr = [...this.target.colorsArray].sort().join(',');
             
-            let validPool = membersDB.filter(m => {
+            let validPool = valid.filter(m => {
                 if(m.id === this.target.id) return false;
                 return [...m.colorsArray].sort().join(',') !== tColorsStr;
             });
+            // 萬一極端情況防撞色後少過3人，就硬補入去防止報錯
+            if(validPool.length < 3) validPool = valid.filter(m => m.id !== this.target.id);
             
             let distractors = shuffle(validPool).slice(0,3);
             let pool = shuffle([this.target, ...distractors]);
@@ -720,7 +748,9 @@ const Games = {
         isActive: false, target: null, px: 0, py: 0, zoom: 6,
         setup() {
             const img = document.getElementById('macroImg'), opts = document.getElementById('macroOpts'); opts.innerHTML = ''; img.style.transition = 'none';
-            let pool = shuffle(membersDB).slice(0,4); this.target = pool[0]; pool = shuffle(pool); img.src = this.target.image; App.lastTarget = this.target;
+            let valid = getValidPool();
+            let pool = shuffle(valid).slice(0,4); this.target = pool[0]; pool = shuffle(pool); img.src = this.target.image; App.lastTarget = this.target;
+            
             this.zoom = 5 + (App.difficulty * 1.5); this.px = (Math.random()*60-30); this.py = (Math.random()*60-30);
             img.style.transform = `scale(${this.zoom}) translate(${this.px}%, ${this.py}%)`;
             pool.forEach(m => {
@@ -740,8 +770,16 @@ const Games = {
     duel: {
         isActive: false, setup() {
             const c = document.getElementById('container-duel'); c.innerHTML = '<div class="duel-vs">VS</div>';
-            let m1 = membersDB[Math.floor(Math.random()*membersDB.length)], m2;
-            do { m2 = membersDB[Math.floor(Math.random()*membersDB.length)]; } while(m1.genNum === m2.genNum);
+            let valid = getValidPool();
+            let m1 = valid[Math.floor(Math.random()*valid.length)], m2;
+            
+            let attempts = 0;
+            do { 
+                m2 = valid[Math.floor(Math.random()*valid.length)]; 
+                attempts++;
+                if (attempts > 50) break; // 防止死循環防禦
+            } while(m1.genNum === m2.genNum);
+            
             App.lastTarget = m1.genNum < m2.genNum ? m1 : m2;
 
             [m1, m2].forEach((m, i) => {
@@ -760,8 +798,12 @@ const Games = {
         isActive: false, mx: 50, my: 50, vx: 0.5, vy: 0.5, baseMask: 65,
         setup() {
             const view = document.getElementById('smileView'), opts = document.getElementById('smileOpts'); opts.innerHTML = '';
-            view.classList.remove('revealed'); let pool = shuffle(membersDB).slice(0,4); this.target = pool[0]; App.lastTarget = this.target;
+            view.classList.remove('revealed'); 
+            
+            let valid = getValidPool();
+            let pool = shuffle(valid).slice(0,4); this.target = pool[0]; App.lastTarget = this.target;
             document.getElementById('smileSharp').src = this.target.image;
+            
             this.baseMask = Math.max(50 - (App.difficulty * 5), 25);
             this.mx = 30+Math.random()*40; this.my = 30+Math.random()*40;
             this.vx = (Math.random()-0.5)*1.2; this.vy = (Math.random()-0.5)*1.2;
@@ -794,7 +836,12 @@ const Games = {
         setup() {
             const c = document.getElementById('puzGrid'); Array.from(c.children).forEach(x=>{if(x.id!=='puzOverlay') x.remove();}); 
             document.getElementById('puzOverlay').style.opacity = 0;
-            this.target = membersDB[Math.floor(Math.random()*membersDB.length)]; document.getElementById('puzOverlay').src = this.target.image; this.state = []; this.sel = null;
+            
+            let valid = getValidPool();
+            this.target = valid[Math.floor(Math.random()*valid.length)]; 
+            document.getElementById('puzOverlay').src = this.target.image; 
+            
+            this.state = []; this.sel = null;
             App.lastTarget = this.target;
 
             for(let i=0; i<9; i++) this.state.push({id:i, pos:i, rot:Math.floor(Math.random()*4)});
