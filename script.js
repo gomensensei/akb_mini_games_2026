@@ -3,15 +3,34 @@ let langs = {};
 let currentLang = 'zh-HK';
 let leaderboard = [];
 
+function getGenYear(m) {
+    const name = m.name_ja;
+    const gen = m.genString;
+    if (name === "坂川 陽香" || name === "徳永 羚海") return 2019;
+    if (gen.includes("13期")) return 2011;
+    if (gen.includes("14期")) return 2012;
+    if (gen.includes("15期")) return 2013;
+    if (gen.includes("Team 8") || gen.includes("チーム8")) return 2014;
+    if (gen.includes("D2") || gen.includes("ドラフト2")) return 2015;
+    if (gen.includes("16期")) return 2016;
+    if (gen.includes("D3") || gen.includes("ドラフト3")) return 2018;
+    if (gen.includes("17期")) return 2022;
+    if (gen.includes("18期")) return 2023;
+    if (gen.includes("19期") || gen.includes("20期")) return 2024;
+    if (gen.includes("21期")) return 2025;
+    return "";
+}
+
 function normalizeMembers(rawList) {
     return rawList.map((m, index) => {
         let kana = m.name_kana || "";
         if (/[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/.test(kana)) kana = "";
 
-        let c1 = "#FF4081", c2 = "#FFB6C1";
+        let colors = [];
         if (m.colorData && m.colorData.length > 0) {
-            c1 = m.colorData[0].color;
-            c2 = m.colorData.length > 1 ? m.colorData[1].color : c1;
+            colors = m.colorData.map(c => c.color);
+        } else {
+            colors = ["#FF4081", "#FFB6C1"];
         }
         
         let gStr = m.ki || m.generation || "Unknown";
@@ -32,9 +51,15 @@ function normalizeMembers(rawList) {
             genString: gStr,
             genNum: gNum,
             image: m.img_url || m.image || m.img || m.photo || "https://placehold.co/300x400/FFB6C1/FFF",
-            c1: c1,
-            c2: c2
+            colorsArray: colors
         };
+    });
+}
+
+function preloadImages() {
+    membersDB.forEach(m => {
+        const img = new Image();
+        img.src = m.image;
     });
 }
 
@@ -45,6 +70,7 @@ async function loadData() {
         const mRaw = await mRes.json();
         langs = await lRes.json();
         membersDB = normalizeMembers(mRaw);
+        preloadImages(); // 確保背景下載圖片
         App.init();
     } catch (err) {
         console.error("Data Load Error:", err);
@@ -88,18 +114,15 @@ function populateMemberSelector() {
 }
 
 function applyLang() {
-    // 1. 更新一般文字
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (langs[currentLang] && langs[currentLang][key]) el.textContent = langs[currentLang][key];
     });
-    // 2. 更新 Placeholder
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
         if (langs[currentLang] && langs[currentLang][key]) el.placeholder = langs[currentLang][key];
     });
     
-    // 3. 修正：只有在「遊戲進行中」才更新標題，防止結算時因為 currentQIdx 越界而引發報錯中斷！
     const gameView = document.getElementById('view-game');
     if (App.mode !== '' && gameView && !gameView.classList.contains('hidden')) {
         const currentGameId = App.queue[App.currentQIdx];
@@ -107,21 +130,20 @@ function applyLang() {
             const gameObj = gameList.find(g => g.id === currentGameId);
             if (gameObj && document.getElementById('gameTitleHint')) {
                 document.getElementById('gameTitleHint').textContent = `${getGameName(gameObj)} - ${App.round}/${App.maxRounds}`;
+                document.getElementById('gameInstruction').textContent = langs[currentLang]['inst_' + currentGameId];
             }
         }
     }
     
-    // 4. 更新選單文字
     populateMemberSelector(); 
 
-    // 5. 確保指令順利抵達 Canvas 重繪區
     const resultView = document.getElementById('view-result');
     if (resultView && !resultView.classList.contains('hidden')) {
-        App.generateResultCanvas(); 
-        const shareBtn = document.getElementById('btnShareText');
-        if (shareBtn) {
-            shareBtn.textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
-        }
+        setTimeout(() => {
+            App.generateResultCanvas(); 
+            const shareBtn = document.getElementById('btnShareText');
+            if (shareBtn) shareBtn.textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
+        }, 10);
     }
 }
 
@@ -141,7 +163,12 @@ function getRubyNameHTML(member) {
 
 function getGameName(g) { return langs[currentLang] ? langs[currentLang]['gn_' + g.id] : g.id; }
 function getShortName(g) { return langs[currentLang] ? langs[currentLang]['gs_' + g.id] : g.id; }
-function getGenDisplay(member) { return member.genString; }
+
+// 加入年份顯示
+function getGenDisplay(member) { 
+    const year = getGenYear(member);
+    return year ? `${member.genString} (${year})` : member.genString;
+}
 
 document.getElementById('langSelector').addEventListener('change', (e) => { currentLang = e.target.value; applyLang(); });
 
@@ -153,8 +180,8 @@ function triggerConfetti() {
 
 function hexToRgba(hex, alpha) {
     let r = 0, g = 0, b = 0;
-    if (hex.length === 4) { r = parseInt(hex[1]+hex[1], 16); g = parseInt(hex[2]+hex[2], 16); b = parseInt(hex[3]+hex[3], 16); } 
-    else if (hex.length === 7) { r = parseInt(hex.substring(1,3), 16); g = parseInt(hex.substring(3,5), 16); b = parseInt(hex.substring(5,7), 16); }
+    if (hex && hex.length === 4) { r = parseInt(hex[1]+hex[1], 16); g = parseInt(hex[2]+hex[2], 16); b = parseInt(hex[3]+hex[3], 16); } 
+    else if (hex && hex.length === 7) { r = parseInt(hex.substring(1,3), 16); g = parseInt(hex.substring(3,5), 16); b = parseInt(hex.substring(5,7), 16); }
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
@@ -248,7 +275,8 @@ const App = {
         if (bgSel) bgSel.value = 'auto';
 
         document.getElementById('view-dashboard').classList.add('hidden'); document.getElementById('view-game').classList.remove('hidden');
-        document.getElementById('btnHome').classList.remove('hidden'); document.getElementById('globalTimerBar').classList.remove('hidden'); document.getElementById('gameTitleHint').classList.remove('hidden');
+        document.getElementById('btnHome').classList.remove('hidden'); document.getElementById('globalTimerBar').classList.remove('hidden'); 
+        document.getElementById('gameTitleHint').classList.remove('hidden'); document.getElementById('gameInstruction').classList.remove('hidden');
         this.loadNextGameInQueue();
     },
 
@@ -261,6 +289,9 @@ const App = {
         
         document.querySelectorAll('#view-game > div').forEach(div => div.classList.add('hidden'));
         document.getElementById(`container-${gId}`).classList.remove('hidden');
+        
+        // 顯示指示
+        document.getElementById('gameInstruction').textContent = langs[currentLang]['inst_' + gId] || "";
         this.nextRound();
     },
 
@@ -331,10 +362,11 @@ const App = {
         if (bgVal !== 'auto') targetColorMember = membersDB.find(m => m.id === bgVal) || this.lastTarget;
 
         const grad = ctx.createLinearGradient(0,0,w,h); 
-        if (targetColorMember && targetColorMember.c1) {
+        if (targetColorMember && targetColorMember.colorsArray.length > 0) {
             grad.addColorStop(0, '#ffffff'); 
-            grad.addColorStop(0.5, hexToRgba(targetColorMember.c1, 0.15)); 
-            grad.addColorStop(1, hexToRgba(targetColorMember.c2, 0.35));
+            grad.addColorStop(0.5, hexToRgba(targetColorMember.colorsArray[0], 0.15)); 
+            let c2 = targetColorMember.colorsArray.length > 1 ? targetColorMember.colorsArray[1] : targetColorMember.colorsArray[0];
+            grad.addColorStop(1, hexToRgba(c2, 0.35));
         } else {
             grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
         }
@@ -399,6 +431,7 @@ const App = {
         document.getElementById('view-game').classList.add('hidden');
         document.getElementById('globalTimerBar').classList.add('hidden');
         document.getElementById('gameTitleHint').classList.add('hidden');
+        document.getElementById('gameInstruction').classList.add('hidden');
         document.getElementById('view-result').classList.remove('hidden');
         triggerConfetti();
     },
@@ -443,6 +476,7 @@ const App = {
         document.getElementById('globalTimerBar').classList.add('hidden');
         document.getElementById('btnHome').classList.add('hidden');
         document.getElementById('gameTitleHint').classList.add('hidden');
+        document.getElementById('gameInstruction').classList.add('hidden');
         document.getElementById('view-dashboard').classList.remove('hidden');
         document.getElementById('view-dashboard').classList.remove('dashboard-blurred');
     }
@@ -459,7 +493,7 @@ const Games = {
             let m = shuffle(membersDB).slice(0, 8); let cards = shuffle([...m, ...m]);
             cards.forEach(mem => {
                 const el = document.createElement('div'); el.className = 'mem-card'; el.dataset.id = mem.id;
-                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'"><div class="mem-name-wrap"><div class="mem-name">${getRubyNameHTML(mem)}</div><div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
+                el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}" crossorigin="anonymous"><div class="mem-name-wrap"><div class="mem-name">${getRubyNameHTML(mem)}</div><div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
                 el.onclick = () => {
                     if(!this.isActive || this.lock || el.classList.contains('flipped') || el.classList.contains('matched')) return;
                     el.classList.add('flipped'); this.flipped.push(el);
@@ -488,26 +522,39 @@ const Games = {
             App.lastTarget = opts.find(m => m.id === this.correctIds[0]);
             shuffle(opts).forEach(m => {
                 const el = document.createElement('div'); el.className = 'sort-card'; el.dataset.id = m.id;
-                el.innerHTML = `<div class="sort-badge"></div><img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'"><div class="sort-gen">${getGenDisplay(m)}</div><div class="sort-name">${getRubyNameHTML(m)}</div>`;
+                el.innerHTML = `<div class="sort-badge"></div><img src="${m.image}" crossorigin="anonymous"><div class="sort-gen">${getGenDisplay(m)}</div><div class="sort-name">${getRubyNameHTML(m)}</div>`;
                 el.onclick = () => {
                     if(!this.isActive) return; el.classList.toggle('selected');
                     if(el.classList.contains('selected')) this.picks.push(m.id); else this.picks.splice(this.picks.indexOf(m.id),1);
                     c.querySelectorAll('.sort-card.selected').forEach(x=>x.querySelector('.sort-badge').textContent = this.picks.indexOf(x.dataset.id) + 1);
                     if(this.picks.length===4) {
                         this.isActive = false; 
-                        c.querySelectorAll('.sort-card').forEach(x=>{x.classList.add('revealed'); x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;});
+                        
                         if(this.picks.every((id,i)=>id===this.correctIds[i])) { 
+                            c.querySelectorAll('.sort-card').forEach(x=>{x.classList.add('revealed'); x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;});
                             c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('correct'));
                             App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); 
                         } else { 
-                            c.classList.add('shake'); c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('wrong')); App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
+                            // 答錯邏輯修正：顯示正確答案然後下一關
+                            c.querySelectorAll('.sort-card').forEach(x=>{
+                                x.classList.add('wrong', 'revealed');
+                                x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;
+                            });
+                            App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
                         }
-                        App.roundEndDelay(2500); 
+                        App.roundEndDelay(3000); 
                     }
                 }; c.appendChild(el);
             });
         },
-        onTimeOut() { document.querySelectorAll('.sort-card').forEach(c=>c.classList.add('wrong','revealed')); App.roundEndDelay(2000); }
+        onTimeOut() { 
+            const c = document.getElementById('container-sort');
+            c.querySelectorAll('.sort-card').forEach(x=>{
+                x.classList.add('wrong', 'revealed');
+                x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;
+            });
+            App.roundEndDelay(3000); 
+        }
     },
     find: {
         isActive: false, nodes: [], target: null,
@@ -524,11 +571,11 @@ const Games = {
             shuffle(pool).forEach(m => {
                 const el = document.createElement('div'); el.className = 'fly-node'; el.dataset.id = m.id;
                 el.style.width=el.style.height=ns+'px';
-                el.innerHTML = `<img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/100x100/FFB6C1/FFF'">`; 
+                el.innerHTML = `<img src="${m.image}" crossorigin="anonymous">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
                 
-                // 再次下調大 Mon 的極限速度
-                let baseSpeed = Math.min(rect.width * 0.003, 2.2);
+                // 大 Mon 速度限制再下調
+                let baseSpeed = Math.min(rect.width * 0.003, 1.8);
                 let s = baseSpeed * (Math.random() * 0.5 + 0.8) * App.difficulty;
                 
                 el.style.transform = `translate(${x}px, ${y}px)`;
@@ -537,7 +584,8 @@ const Games = {
                     if(m.id===this.target.id) { 
                         this.isActive=false; el.classList.add('correct'); c.classList.add('dimmed'); 
                         el.style.transform = `translate(${rect.width/2 - ns/2}px, ${rect.height/2 - ns/2}px) scale(2)`;
-                        el.style.boxShadow = `0 0 40px ${this.target.c1}, inset 0 0 20px ${this.target.c2}`;
+                        let c1 = m.colorsArray[0] || '#FF4081', c2 = m.colorsArray[1] || c1;
+                        el.style.boxShadow = `0 0 40px ${c1}, inset 0 0 20px ${c2}`;
                         App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); App.roundEndDelay(2500); 
                     } else { App.score = Math.max(0, App.score-50); document.getElementById('scoreDisplay').textContent=App.score; el.style.borderColor='red'; setTimeout(()=>el.style.borderColor='#fff', 300); }
                 }; c.appendChild(el); this.nodes.push({el, x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, size:ns});
@@ -554,9 +602,22 @@ const Games = {
         setup() {
             const cDisplay = document.getElementById('colorDisplay'), opts = document.getElementById('colorOpts'); 
             cDisplay.innerHTML = ''; opts.innerHTML = '';
-            let pool = shuffle(membersDB).slice(0,4); this.target = pool[0]; pool = shuffle(pool); App.lastTarget = this.target;
             
-            cDisplay.innerHTML = `<div class="color-chunk" style="background-color:${this.target.c1};"></div><div class="color-chunk" style="background-color:${this.target.c2};"></div>`;
+            this.target = membersDB[Math.floor(Math.random() * membersDB.length)];
+            App.lastTarget = this.target;
+            const tColorsStr = [...this.target.colorsArray].sort().join(',');
+            
+            // 防撞色過濾
+            let validPool = membersDB.filter(m => {
+                if(m.id === this.target.id) return false;
+                return [...m.colorsArray].sort().join(',') !== tColorsStr;
+            });
+            
+            let distractors = shuffle(validPool).slice(0,3);
+            let pool = shuffle([this.target, ...distractors]);
+            
+            // 支援無限多種顏色展示 (沙穂 3色)
+            cDisplay.innerHTML = this.target.colorsArray.map(c => `<div class="color-chunk" style="background-color:${c};"></div>`).join('');
             
             pool.forEach(m => {
                 const b = document.createElement('button'); b.className = 'opt-btn'; b.dataset.id = m.id; b.innerHTML = getRubyNameHTML(m);
@@ -600,15 +661,15 @@ const Games = {
 
             [m1, m2].forEach((m, i) => {
                 const el = document.createElement('div'); el.className = 'duel-card'; el.id = `duel${i}`;
-                el.innerHTML = `<img src="${m.image}" crossorigin="anonymous" onerror="this.src='https://placehold.co/200x300/FFB6C1/FFF'"><div class="duel-gen">${getGenDisplay(m)}</div><div class="duel-name">${getRubyNameHTML(m)}</div>`;
+                el.innerHTML = `<img src="${m.image}" crossorigin="anonymous"><div class="duel-gen">${getGenDisplay(m)}</div><div class="duel-name">${getRubyNameHTML(m)}</div>`;
                 el.onclick = () => {
                     if(!this.isActive) return; this.isActive=false; c.querySelectorAll('.duel-card').forEach(x=>x.classList.add('revealed')); 
                     if((i===0&&m1.genNum<m2.genNum)||(i===1&&m2.genNum<m1.genNum)) { el.classList.add('correct'); App.addScore(600, 1-(performance.now()-App.timerStart)/App.timeLimit); if(App.mode!=='challenge') triggerConfetti(); }
                     else { el.classList.add('wrong'); c.style.animation='shake 0.4s'; document.getElementById(`duel${i===0?1:0}`).classList.add('correct'); }
-                    App.roundEndDelay(1500);
+                    App.roundEndDelay(2500);
                 }; c.appendChild(el);
             });
-        }, onTimeOut() { document.getElementById('container-duel').querySelectorAll('.duel-card').forEach(c=>c.classList.add('wrong', 'revealed')); App.roundEndDelay(1500); }
+        }, onTimeOut() { document.getElementById('container-duel').querySelectorAll('.duel-card').forEach(c=>c.classList.add('wrong', 'revealed')); App.roundEndDelay(2000); }
     },
     smile: {
         isActive: false, mx: 50, my: 50, vx: 0.5, vy: 0.5, baseMask: 65,
