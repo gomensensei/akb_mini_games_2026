@@ -554,16 +554,18 @@ const App = {
 
         const grad = ctx.createLinearGradient(0,0,w,h); 
         if (targetColorMember && targetColorMember.colorsArray.length > 0) {
-            grad.addColorStop(0, '#ffffff'); 
-            grad.addColorStop(0.5, hexToRgba(targetColorMember.colorsArray[0], 0.15)); 
-            let c2 = targetColorMember.colorsArray.length > 1 ? targetColorMember.colorsArray[1] : targetColorMember.colorsArray[0];
-            grad.addColorStop(1, hexToRgba(c2, 0.35));
+            // 🌟 修正：移除過度淡化嘅透明度，保留推色嘅鮮艷度！
+            let c1 = targetColorMember.colorsArray[0];
+            let c2 = targetColorMember.colorsArray.length > 1 ? targetColorMember.colorsArray[1] : c1;
+            grad.addColorStop(0, hexToRgba(c1, 0.85)); 
+            grad.addColorStop(1, hexToRgba(c2, 0.95));
         } else {
             grad.addColorStop(0, '#e0eafc'); grad.addColorStop(0.5, '#cfdef3'); grad.addColorStop(1, '#FFB6C1');
         }
         ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
         
-        ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
+        // 🌟 將戰績卡稍微調白少少 (0.95)，等字體喺深色背景上更清晰
+        ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.shadowColor = 'rgba(0,0,0,0.15)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
         drawRoundRect(ctx, 20, 20, w-40, h-40, 20);
         ctx.shadowColor = 'transparent';
         
