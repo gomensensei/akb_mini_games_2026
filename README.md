@@ -1,6 +1,6 @@
 # AKB48 Fan Quest | AKB48 粉絲入門挑戰 | AKB48 ファン入門テスト
 
-![Version](https://img.shields.io/badge/Version-2026.03.29-pink)
+![Version](https://img.shields.io/badge/Version-2026.04.02-pink)
 ![License](https://img.shields.io/badge/License-Non--Commercial-blue)
 ![Platform](https://img.shields.io/badge/Platform-Web-orange)
 
