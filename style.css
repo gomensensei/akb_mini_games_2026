@@ -11,6 +11,8 @@ body {
 }
 img { -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; -o-user-drag: none; }
 input, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-select: auto; user-select: auto; }
+
+/* 🌟 極度重要：為長按下載圖開放權限！ */
 #exportImgDisplay { -webkit-touch-callout: default; pointer-events: auto; }
 /* ========================================== */
 
@@ -34,7 +36,9 @@ input, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-se
 .intro-stats { background: rgba(255,255,255,0.5); padding: 5px 15px; border-radius: 20px; font-weight: 900; margin-bottom: 30px; font-size: 0.9rem; border: 1px solid #fff; }
 
 .level-badge { background: var(--primary); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 900; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(255,64,129,0.3); }
-.combo-pop { position: absolute; top: -25px; right: 0; color: #FFD700; font-weight: 900; font-size: 1.1rem; text-shadow: 0 2px 5px rgba(0,0,0,0.3); animation: comboPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none;}
+
+/* 修復 Combo 字眼裁切及重疊問題 */
+.combo-pop { position: absolute; bottom: -30px; right: 5px; color: #FFD700; font-weight: 900; font-size: 1.2rem; text-shadow: 0 2px 5px rgba(0,0,0,0.5); animation: comboPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; white-space: nowrap; z-index: 100;}
 
 .ripple-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; opacity: 0.3; background: radial-gradient(circle, transparent 20%, rgba(255,255,255,0.4) 21%, transparent 25%); background-size: 80px 80px; animation: ripple 4s linear infinite; }
 
