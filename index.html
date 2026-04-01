@@ -48,7 +48,7 @@
         <div style="display:flex; flex-direction:column; align-items:center; gap: 15px;">
             <div style="display:flex; align-items:center; gap: 15px;">
                 <span class="blink" style="font-size: 2rem;">👉</span>
-                <button class="btn glow-box-breathe float-anim" style="font-size: 1.2rem; padding: 15px 30px;" onclick="App.showOshiSelect()" data-i18n="btn_start_game">GAME START</button>
+                <button class="btn glow-box-breathe float-anim" style="font-size: 1.2rem; padding: 15px 30px; letter-spacing: 2px;" onclick="App.showOshiSelect()" data-i18n="btn_start_game">GAME START</button>
                 <span class="blink" style="font-size: 2rem;">👈</span>
             </div>
             <button class="btn btn-outline" onclick="App.showAlbum()" style="width: 100%;">📖 <span data-i18n="btn_album">成員圖鑑</span></button>
@@ -75,29 +75,34 @@
     </div>
 
     <div id="loading-screen" class="hidden flex-center" style="flex:1; flex-direction:column;">
-        <div class="glow-text-breathe" style="font-size: 3.5rem; font-weight: 900; color: var(--primary);">AKB48</div>
+        <div class="glow-text-breathe" style="font-size: 3rem; font-weight: 900; color: var(--primary);">AKB48</div>
         <div id="loadingText" style="margin-top: 10px; font-weight: 700; color: var(--text-sec);" data-i18n="loading">遊戲載入中...</div>
     </div>
 
     <main id="view-dashboard" class="hidden" style="flex:1; flex-direction:column; align-items:center; padding: 20px; overflow-y:auto;">
         <h2 class="glow-text-breathe intro-title" style="margin: 0 0 20px;" data-i18n="select_mode">選擇模式</h2>
         <div class="dashboard-menu">
-            <div class="mode-card glass-panel glow-box-breathe float-anim" onclick="App.startMode('classic')">
+            <div class="mode-card glass-panel glow-box-breathe float-anim" style="animation-delay: 0s;" onclick="App.startMode('classic')">
                 <h2 data-i18n="mode_classic">🏆 經典挑戰</h2>
                 <p data-i18n="desc_classic">挑戰 8 項小遊戲，和朋友比拼分數！</p>
             </div>
-            <div class="mode-card glass-panel float-anim" onclick="App.showModal('casual')">
+            <div class="mode-card glass-panel float-anim" style="animation-delay: 0.2s;" onclick="App.showModal('casual')">
                 <h2 data-i18n="mode_casual">☕ 自由探索</h2>
                 <p data-i18n="desc_casual">選擇單一遊戲輕鬆遊玩。</p>
             </div>
-            <div class="mode-card glass-panel float-anim" onclick="App.showModal('custom')">
+            <div class="mode-card glass-panel float-anim" style="animation-delay: 0.4s;" onclick="App.showModal('custom')">
                 <h2 data-i18n="mode_custom">🛠️ 自訂組合</h2>
                 <p data-i18n="desc_custom">挑選你喜歡的遊戲清單。</p>
             </div>
-            <div class="mode-card glass-panel float-anim" onclick="App.showModal('challenge')">
+            <div class="mode-card glass-panel float-anim" style="animation-delay: 0.6s;" onclick="App.showModal('challenge')">
                 <h2 data-i18n="mode_challenge">🔥 極限生存</h2>
                 <p data-i18n="desc_challenge">單一遊戲 50 回合耐久戰！</p>
             </div>
+        </div>
+
+        <div class="leaderboard-box" id="lbContainer" style="margin-top: 20px;">
+            <h3 class="leaderboard-title" data-i18n="lb_title">🔥 挑戰者排行榜</h3>
+            <ul class="lb-list" id="lbList"></ul>
         </div>
     </main>
 
@@ -105,14 +110,16 @@
         <div class="glass-panel" style="padding: 20px; width: 90%; max-width: 450px; position: relative; max-height: 80vh; display: flex; flex-direction: column;">
             <button style="position: absolute; top: 10px; right: 15px; background: transparent; border: none; font-size: 1.5rem; font-weight: 900; color: var(--text-sec); cursor: pointer;" onclick="App.closeInstructions()">✕</button>
             <h2 style="color: var(--primary); text-align: center; margin-top: 0;" data-i18n="inst_title">遊戲操作說明</h2>
+            
             <div style="flex: 1; overflow-y: auto; padding-right: 10px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: var(--text-main);" id="allInstructionsList"></div>
+            
             <button class="btn btn-outline" style="width: 100%; flex-shrink: 0;" onclick="App.closeInstructions()" data-i18n="btn_skip">了解，開始！</button>
         </div>
     </div>
 
     <main id="view-game" class="game-wrapper hidden">
         <div id="difficulty-ripple" class="ripple-overlay hidden"></div>
-        
+
         <div id="container-mem" class="mem-grid hidden"></div>
         <div id="container-sort" class="sort-grid hidden"></div>
         <div id="container-find" class="fly-arena hidden"></div>
@@ -138,11 +145,14 @@
         <div class="canvas-preview-wrap" id="canvasWrapNode">
             <img id="resultCanvasPreview" src="">
         </div>
+        
         <div class="social-panel">
-            <select id="bgColorSelector" class="name-input" onchange="App.updateResultView()">
+            <select id="bgColorSelector" class="name-input" style="margin-bottom: 8px; cursor: pointer;" onchange="App.updateResultView()">
                 <option value="auto" data-i18n="bg_auto">✨ 專屬應援色 (Auto)</option>
             </select>
+            
             <input type="text" id="playerName" class="name-input hidden" maxlength="12" placeholder="輸入名字參與排行榜" data-i18n-placeholder="ph_name" oninput="App.generateResultCanvas()">
+            
             <div class="row">
                 <button class="btn" style="flex: 1.2;" onclick="App.downloadResult()">📥 <span data-i18n="btn_dl">下載</span></button>
                 <button class="btn" style="flex: 1;" onclick="App.copyLink()">📋 <span data-i18n="btn_copy">連結</span></button>
@@ -166,7 +176,7 @@
     <div class="modal-overlay flex-center hidden" id="downloadModal" style="z-index: 200;">
         <div class="glass-panel" style="padding: 20px; text-align: center; max-width: 90vw; width: 400px;">
             <h3 style="color: var(--primary); margin-top:0;" data-i18n="long_press_save">👇 長按圖片即可保存 👇</h3>
-            <img id="exportImgDisplay" src="" style="width: 100%; border-radius: 12px;">
+            <img id="exportImgDisplay" src="" style="width: 100%; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
             <button class="btn btn-outline" style="margin-top: 15px; width: 100%;" onclick="document.getElementById('downloadModal').classList.add('hidden')" data-i18n="btn_cancel">關閉</button>
         </div>
     </div>
