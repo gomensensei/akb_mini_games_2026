@@ -1,57 +1,27 @@
 :root { --bg-1: #e0eafc; --bg-2: #cfdef3; --bg-3: #FFB6C1; --bg-4: #f8bbd0; --primary: #FF4081; --text-main: #2C3E50; --text-sec: #7F8C8D; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: 'Noto Sans JP', sans-serif; }
-body { margin: 0; background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), var(--bg-3), var(--bg-4)); background-size: 400% 400%; animation: gradBG 20s ease infinite; height: 100dvh; color: var(--text-main); overflow: hidden; display: flex; flex-direction: column; }
+
 /* ==========================================
    防護罩：防止反白、拖曳與長按選單
 ========================================== */
-
-/* 1. 封鎖全網頁的文字反白 (Highlight) 與 iOS 長按選單 */
 body {
-    -webkit-user-select: none; /* Safari */
-    -moz-user-select: none; /* Firefox */
-    -ms-user-select: none; /* IE10+/Edge */
-    user-select: none; /* Standard */
-    -webkit-touch-callout: none; /* 防止 iOS 彈出「複製/儲存」選單 */
+    margin: 0; background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), var(--bg-3), var(--bg-4)); background-size: 400% 400%; animation: gradBG 20s ease infinite; height: 100dvh; color: var(--text-main); overflow: hidden; display: flex; flex-direction: column;
+    -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
 }
-
-/* 2. 封鎖所有圖片的拖曳 (Drag) 鬼影 */
-img {
-    -webkit-user-drag: none;
-    -khtml-user-drag: none;
-    -moz-user-drag: none;
-    -o-user-drag: none;
-}
-
-/* 3. 例外處理 A：確保玩家輸入名字的 Input 框仍然可以正常打字和反白 */
-input, textarea {
-    -webkit-user-select: auto;
-    -moz-user-select: auto;
-    -ms-user-select: auto;
-    user-select: auto;
-}
-
-/* 4. 例外處理 B：確保「長按下載」的戰績圖不受限制，否則玩家會 Save 唔到圖！ */
-#exportImgDisplay {
-    -webkit-touch-callout: default;
-    pointer-events: auto;
-}
+img { -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; -o-user-drag: none; }
+input, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-select: auto; user-select: auto; }
+#exportImgDisplay { -webkit-touch-callout: default; pointer-events: auto; }
+/* ========================================== */
 
 @keyframes gradBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
 
-/* 修復 1: 動畫分開處理，避免 transform 互相覆蓋 */
-@keyframes glowBreathe {
-    0% { box-shadow: 0 0 10px rgba(255,64,129,0.3); }
-    100% { box-shadow: 0 0 30px rgba(255,64,129,0.8); }
-}
-@keyframes glowTextBreathe {
-    0% { text-shadow: 0 0 5px rgba(255,64,129,0.4); }
-    100% { text-shadow: 0 0 20px rgba(255,64,129,0.9); }
-}
-@keyframes floatAnim {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
+@keyframes floatAnim { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes glowBreathe { 0% { box-shadow: 0 0 10px rgba(255,64,129,0.3); } 100% { box-shadow: 0 0 30px rgba(255,64,129,0.8); } }
+@keyframes glowTextBreathe { 0% { text-shadow: 0 0 5px rgba(255,64,129,0.4); } 100% { text-shadow: 0 0 20px rgba(255,64,129,0.9); } }
+@keyframes ripple { 0% { background-position: 0 0; } 100% { background-position: 100px 100px; } }
+@keyframes comboPop { 0% { transform: scale(0.5) rotate(-10deg); opacity: 0; } 50% { transform: scale(1.3) rotate(5deg); opacity: 1; } 100% { transform: scale(1) rotate(0deg); } }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
 .glow-text-breathe { animation: glowTextBreathe 2s infinite alternate; }
@@ -59,9 +29,21 @@ input, textarea {
 .float-anim { animation: floatAnim 3s ease-in-out infinite; will-change: transform; }
 .blink { animation: blink 1.5s infinite; }
 
-/* 標題與副標題 CSS (修復手機版爆框) */
-.intro-title { color: var(--primary); text-align: center; font-size: 2.5rem; margin: 0 0 5px; line-height: 1.2; word-break: keep-all;}
-.intro-subtitle { color: var(--text-main); font-weight: 700; font-size: 1.1rem; margin-bottom: 40px; text-align: center; }
+.intro-title { font-size: 2.5rem; text-align: center; line-height: 1.2; margin-bottom: 5px;}
+.intro-subtitle { font-weight: 700; font-size: 1.1rem; margin-bottom: 20px; color: var(--text-main); text-align: center;}
+.intro-stats { background: rgba(255,255,255,0.5); padding: 5px 15px; border-radius: 20px; font-weight: 900; margin-bottom: 30px; font-size: 0.9rem; border: 1px solid #fff; }
+
+.level-badge { background: var(--primary); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 900; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(255,64,129,0.3); }
+.combo-pop { position: absolute; top: -25px; right: 0; color: #FFD700; font-weight: 900; font-size: 1.1rem; text-shadow: 0 2px 5px rgba(0,0,0,0.3); animation: comboPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none;}
+
+.ripple-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; opacity: 0.3; background: radial-gradient(circle, transparent 20%, rgba(255,255,255,0.4) 21%, transparent 25%); background-size: 80px 80px; animation: ripple 4s linear infinite; }
+
+.oshi-grid, .album-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; overflow-y: auto; flex: 1; padding: 10px 5px; }
+.oshi-item, .album-item { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; transition: 0.2s; }
+.oshi-item img, .album-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+.oshi-item.selected img { border-color: var(--primary); transform: scale(1.1); box-shadow: 0 0 15px var(--primary); }
+.album-item.locked img { filter: grayscale(1) brightness(0.5) blur(2px); }
+.album-item span, .oshi-item span { font-size: 0.65rem; font-weight: 700; text-align: center; }
 
 .flex-center { display: flex; justify-content: center; align-items: center; }
 .hidden { display: none !important; }
@@ -71,7 +53,7 @@ input, textarea {
 .topbar { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; z-index: 50; flex-shrink: 0;}
 .topbar-left { display: flex; gap: 8px; align-items: center; }
 .lang-select { padding: 4px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.5); font-weight: 700; outline: none; color: var(--text-main); max-width: 120px;}
-.score-board { font-size: 1rem; font-weight: 900; color: var(--primary); background: rgba(255,255,255,0.9); padding: 4px 12px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);}
+.score-board { position: relative; font-size: 1rem; font-weight: 900; color: var(--primary); background: rgba(255,255,255,0.9); padding: 4px 12px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);}
 
 .timer-bg { width: calc(100% - 30px); height: 8px; background: rgba(255,255,255,0.5); border-radius: 4px; overflow: hidden; margin: 0 15px 5px; flex-shrink: 0; }
 .timer-fill { height: 100%; background: linear-gradient(90deg, #FFB6C1, var(--primary)); width: 100%; transform-origin: left; will-change: transform; }
@@ -172,7 +154,6 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .modal-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.6); backdrop-filter: blur(15px); z-index: 100; flex-direction: column; padding: 20px;}
 .app-footer { text-align: center; padding: 10px; font-size: 0.75rem; color: var(--text-sec); font-weight: 700; flex-shrink: 0; line-height: 1.4;}
 
-/* 手機版適配修復 */
 @media (max-width: 480px) {
     .intro-title { font-size: 1.8rem; }
     .intro-subtitle { font-size: 0.95rem; margin-bottom: 30px; }
@@ -180,5 +161,6 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
     .mode-card h2 { font-size: 1.1rem; }
     .score-board { font-size: 0.9rem; }
     .lang-select { font-size: 0.8rem; }
+    .oshi-grid, .album-grid { grid-template-columns: repeat(3, 1fr); }
     .app-footer { font-size: 0.65rem; padding: 8px; }
 }
