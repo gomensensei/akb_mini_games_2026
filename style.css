@@ -33,8 +33,19 @@ input, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-se
 .intro-subtitle { font-weight: 700; font-size: 1.1rem; margin-bottom: 20px; color: var(--text-main); text-align: center;}
 .intro-stats { background: rgba(255,255,255,0.5); padding: 5px 15px; border-radius: 20px; font-weight: 900; margin-bottom: 30px; font-size: 0.9rem; border: 1px solid #fff; }
 
-.level-badge { background: var(--primary); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 900; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(255,64,129,0.3); }
+/* 頂部排版 (強制單行不爆框) */
+.topbar { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; z-index: 50; flex-shrink: 0; gap: 8px; white-space: nowrap; }
+.topbar-left { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.header-center { flex: 1; display: flex; justify-content: center; min-width: 0; }
+.level-badge { background: var(--primary); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 900; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(255,64,129,0.3); overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+.lang-select { padding: 4px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.5); font-weight: 700; outline: none; color: var(--text-main); max-width: 120px;}
+.score-board { position: relative; font-size: 1rem; font-weight: 900; color: var(--primary); background: rgba(255,255,255,0.9); padding: 4px 12px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); flex-shrink: 0;}
+
 .combo-pop { position: absolute; bottom: -30px; right: 5px; color: #FFD700; font-weight: 900; font-size: 1.2rem; text-shadow: 0 2px 5px rgba(0,0,0,0.5); animation: comboPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; white-space: nowrap; z-index: 100;}
+
+/* 🌟 PERFECT 字眼 CSS 化 */
+.floating-perfect { position: absolute; top: 20%; left: 50%; transform: translate(-50%,-50%); color: #FFD700; font-size: 3rem; font-weight: 900; z-index: 100; pointer-events: none; text-shadow: 0 0 20px #FF4081; animation: comboPop 0.8s forwards; white-space: nowrap; }
 
 .ripple-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; opacity: 0.3; background: radial-gradient(circle, transparent 20%, rgba(255,255,255,0.4) 21%, transparent 25%); background-size: 80px 80px; animation: ripple 4s linear infinite; }
 
@@ -49,11 +60,6 @@ input, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-se
 .hidden { display: none !important; }
 .stage-exit { transform: scale(0.9); filter: blur(10px); opacity: 0; pointer-events: none; transition: all 0.4s ease; }
 .stage-active { transform: scale(1); filter: blur(0); opacity: 1; transition: all 0.4s ease; }
-
-.topbar { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; z-index: 50; flex-shrink: 0;}
-.topbar-left { display: flex; gap: 8px; align-items: center; }
-.lang-select { padding: 4px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.5); font-weight: 700; outline: none; color: var(--text-main); max-width: 120px;}
-.score-board { position: relative; font-size: 1rem; font-weight: 900; color: var(--primary); background: rgba(255,255,255,0.9); padding: 4px 12px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);}
 
 .timer-bg { width: calc(100% - 30px); height: 8px; background: rgba(255,255,255,0.5); border-radius: 4px; overflow: hidden; margin: 0 15px 5px; flex-shrink: 0; }
 .timer-fill { height: 100%; background: linear-gradient(90deg, #FFB6C1, var(--primary)); width: 100%; transform-origin: left; will-change: transform; }
@@ -154,13 +160,21 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
 .modal-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.6); backdrop-filter: blur(15px); z-index: 100; flex-direction: column; padding: 20px;}
 .app-footer { text-align: center; padding: 10px; font-size: 0.75rem; color: var(--text-sec); font-weight: 700; flex-shrink: 0; line-height: 1.4;}
 
+/* 🌟 手機版極致排版縮放 */
 @media (max-width: 480px) {
+    .topbar { padding: 8px 5px; gap: 4px; }
+    .topbar-left { gap: 4px; }
+    .lang-select { font-size: 0.7rem; padding: 3px; max-width: 60px; }
+    #btnHome { padding: 4px 8px; font-size: 0.75rem; }
+    .level-badge { font-size: 0.65rem; padding: 3px 6px; }
+    .score-board { font-size: 0.8rem; padding: 4px 8px; }
+    .combo-pop { font-size: 0.9rem; bottom: -20px; right: 0; }
+    .floating-perfect { font-size: 1.8rem; }
+    
     .intro-title { font-size: 1.8rem; }
     .intro-subtitle { font-size: 0.95rem; margin-bottom: 30px; }
     .btn { font-size: 0.85rem; padding: 10px 14px;}
     .mode-card h2 { font-size: 1.1rem; }
-    .score-board { font-size: 0.9rem; }
-    .lang-select { font-size: 0.8rem; }
     .oshi-grid, .album-grid { grid-template-columns: repeat(3, 1fr); }
     .app-footer { font-size: 0.65rem; padding: 8px; }
 }
