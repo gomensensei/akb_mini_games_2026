@@ -490,10 +490,11 @@ const App = {
         } else { el.classList.add('hidden'); }
     },
 
+// 🌟 PERFECT 字眼 CSS 類別化
     showFloatingText(text) {
         const div = document.createElement('div');
         div.textContent = text;
-        div.style.cssText = "position:absolute; top:20%; left:50%; transform:translate(-50%,-50%); color:#FFD700; font-size:3rem; font-weight:900; z-index:100; pointer-events:none; text-shadow:0 0 20px #FF4081; animation: comboPop 0.8s forwards;";
+        div.className = 'floating-perfect'; // 使用預先寫好的響應式 CSS Class
         document.body.appendChild(div);
         setTimeout(() => div.remove(), 800);
     },
