@@ -11,6 +11,8 @@ let userData = {
 };
 
 function saveUserData() {
+    // 確保存入時剔除重複及 null 數據
+    userData.unlockedIds = [...new Set(userData.unlockedIds)].filter(Boolean);
     localStorage.setItem('akb_total_xp', userData.totalScore);
     localStorage.setItem('akb_unlocked', JSON.stringify(userData.unlockedIds));
     localStorage.setItem('akb_my_oshi', userData.myOshiId);
@@ -35,7 +37,7 @@ function getGenYear(m) {
     if (gen.includes("Team 8") || gen.includes("チーム8")) return 2014;
     if (gen.includes("D2") || gen.includes("ドラフト2")) return 2015;
     if (gen.includes("16期")) return 2016;
-    if (gen.includes("D3") || gen.includes("ドラフト3")) return 2018;
+    if (gen.includes("D3") || gen.includes("ドラフト3")) return 2018; // 🌟 修正：D3 為 2018 年
     if (gen.includes("17期")) return 2022;
     if (gen.includes("18期")) return 2023;
     if (gen.includes("19期") || gen.includes("20期")) return 2024;
@@ -57,9 +59,17 @@ function normalizeMembers(rawList) {
         
         let gStr = m.ki || m.generation || "Unknown";
         let gNum = parseFloat(m.genNum) || parseFloat(m.ki) || 99;
-        if (gStr.includes("Team 8") || gStr.includes("チーム8")) gNum = 15.1;
-        if (gStr.includes("ドラフト2") || gStr.includes("D2")) gNum = 15.2;
-        if (gStr.includes("ドラフト3") || gStr.includes("D3")) gNum = 15.3;
+        
+        // 🌟 修正：確保期數排序邏輯完全符合加入順序
+        if (gStr.includes("Team 8") || gStr.includes("チーム8")) {
+            if (m.name_ja === "坂川 陽香" || m.name_ja === "徳永 羚海") {
+                gNum = 16.5; // 2019加入，排喺 D3(16.1) 之後，17期(17.0) 之前
+            } else {
+                gNum = 15.1; // 原 Team 8，2014加入
+            }
+        }
+        if (gStr.includes("ドラフト2") || gStr.includes("D2")) gNum = 15.2; // 2015加入
+        if (gStr.includes("ドラフト3") || gStr.includes("D3")) gNum = 16.1; // 🌟 修正：2018加入，排喺 16期(16.0) 之後
 
         return {
             id: String(m.id || index),
@@ -73,10 +83,13 @@ function normalizeMembers(rawList) {
             genString: gStr,
             genNum: gNum,
             image: m.img_url || m.image || m.img || m.photo,
-            colorsArray: colors
+            colorsArray: colors,
+            imgLoaded: false 
         };
     });
 }
+
+function getValidPool() { return membersDB.filter(m => m.imgLoaded); }
 
 async function loadData() {
     try {
@@ -276,7 +289,10 @@ const App = {
 
     updateHeaderStats() {
         document.getElementById('userLevelDisplay').textContent = `Lv.${Math.floor(userData.totalScore/10000) + 1} ${getLevelLabel(userData.totalScore)}`;
-        document.getElementById('albumCountDisplay').textContent = `${userData.unlockedIds.length}/52`;
+        const uniqueUnlocked = new Set(userData.unlockedIds);
+        let validCount = 0;
+        membersDB.forEach(m => { if (uniqueUnlocked.has(m.id)) validCount++; });
+        document.getElementById('albumCountDisplay').textContent = `${validCount}/${membersDB.length}`;
     },
 
     showAlbum() {
@@ -317,7 +333,6 @@ const App = {
         this.startGameFlow();
     },
 
-    // 原版無 Bug 載入引擎
     async startGameFlow() {
         document.getElementById('view-intro').classList.add('hidden');
         document.getElementById('loading-screen').classList.remove('hidden');
@@ -342,8 +357,8 @@ const App = {
                 }
                 resolve();
             };
-            img.onload = onLoadOrError;
-            img.onerror = onLoadOrError; 
+            img.onload = () => { m.imgLoaded = true; onLoadOrError(); };
+            img.onerror = () => { m.imgLoaded = true; onLoadOrError(); }; // 即使報錯也放行以防卡死
             img.src = m.image;
         }));
 
@@ -465,7 +480,11 @@ const App = {
         this.updateComboHUD();
 
         let bonus = 0;
-        if (ratio > 0.85) { 
+        let perfectThreshold = 0.85; 
+        if (this.activeGame === Games.puz) perfectThreshold = 0.50; 
+        else if (this.activeGame === Games.mem) perfectThreshold = 0.65; 
+
+        if (ratio > perfectThreshold) { 
             bonus = base * 0.5;
             this.showFloatingText(langs[currentLang].msg_perfect);
         }
@@ -490,11 +509,10 @@ const App = {
         } else { el.classList.add('hidden'); }
     },
 
-// 🌟 PERFECT 字眼 CSS 類別化
     showFloatingText(text) {
         const div = document.createElement('div');
         div.textContent = text;
-        div.className = 'floating-perfect'; // 使用預先寫好的響應式 CSS Class
+        div.className = 'floating-perfect'; 
         document.body.appendChild(div);
         setTimeout(() => div.remove(), 800);
     },
@@ -555,7 +573,6 @@ const App = {
 
         const grad = ctx.createLinearGradient(0,0,w,h); 
         if (targetColorMember && targetColorMember.colorsArray.length > 0) {
-            // 🌟 修正：移除過度淡化嘅透明度，保留推色嘅鮮艷度！
             let c1 = targetColorMember.colorsArray[0];
             let c2 = targetColorMember.colorsArray.length > 1 ? targetColorMember.colorsArray[1] : c1;
             grad.addColorStop(0, hexToRgba(c1, 0.85)); 
@@ -565,7 +582,6 @@ const App = {
         }
         ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
         
-        // 🌟 將戰績卡稍微調白少少 (0.95)，等字體喺深色背景上更清晰
         ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.shadowColor = 'rgba(0,0,0,0.15)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
         drawRoundRect(ctx, 20, 20, w-40, h-40, 20);
         ctx.shadowColor = 'transparent';
@@ -623,7 +639,7 @@ const App = {
             const name = pName || 'Anonymous';
             const tempLb = leaderboard.concat([{n:name, s:this.score}]);
             const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(tempLb.sort((a,b)=>b.s-a.s).slice(0,10)))));
-            shareUrl += '?lb=' + b64;
+            shareUrl += '?lb=' + encodeURIComponent(b64);
         }
         navigator.clipboard.writeText(shareUrl).then(() => { alert(langs[currentLang].msg_copied || "Copied!"); }).catch(err => { console.error('Copy failed', err); });
     },
@@ -635,7 +651,7 @@ const App = {
             const name = pName || 'Anonymous';
             leaderboard.push({n:name, s:this.score});
             const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(leaderboard.sort((a,b)=>b.s-a.s).slice(0,10)))));
-            shareUrl += '?lb=' + b64;
+            shareUrl += '?lb=' + encodeURIComponent(b64);
         }
         const rank = this.calculateRank(), title = langs[currentLang][rank.key];
         const modeStr = langs[currentLang][`mode_${this.mode}`] || "";
@@ -648,14 +664,14 @@ const App = {
 };
 
 // ==========================================
-// 遊戲邏輯實作 (完美還原原版無 Bug UI 反饋)
+// 遊戲邏輯實作 
 // ==========================================
 const Games = {
     mem: {
         isActive: false, pairs: 0, flipped: [], lock: false,
         setup() {
             const c = document.getElementById('container-mem'); c.innerHTML = ''; this.pairs = 0; this.flipped = []; this.lock = false;
-            let m = shuffle(membersDB).slice(0, 8); let cards = shuffle([...m, ...m]);
+            let valid = getValidPool(); let m = shuffle(valid).slice(0, 8); let cards = shuffle([...m, ...m]);
             cards.forEach(mem => {
                 const el = document.createElement('div'); el.className = 'mem-card'; el.dataset.id = mem.id;
                 el.innerHTML = `<div class="mem-inner"><div class="mem-face mem-back">AKB</div><div class="mem-face mem-front"><img src="${mem.image}"><div class="mem-name-wrap"><div class="mem-name">${getRubyNameHTML(mem)}</div><div class="mem-nickname">${mem.nickname}</div></div></div></div>`;
@@ -665,12 +681,11 @@ const Games = {
                     if(this.flipped.length===2) {
                         this.lock = true;
                         if(this.flipped[0].dataset.id === this.flipped[1].dataset.id) {
-                            this.pairs++;
-                            setTimeout(() => { 
-                                this.flipped.forEach(f=>f.classList.add('matched')); this.flipped=[]; this.lock=false; 
-                                if(this.pairs===8) { App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit); App.roundEndDelay(1500); }
-                            }, App.getDelay(500));
-                        } else { App.combo = 0; setTimeout(() => { this.flipped.forEach(f=>f.classList.remove('flipped')); this.flipped=[]; this.lock=false; }, App.getDelay(1000)); }
+                            this.pairs++; this.flipped.forEach(f=>f.classList.add('matched'));
+                            this.lastTarget = m.find(x=>x.id === this.flipped[0].dataset.id);
+                            this.flipped=[]; this.lock=false;
+                            if(this.pairs===8) { App.addScore(2000, 1-(performance.now()-App.timerStart)/App.timeLimit); App.roundEndDelay(1500); }
+                        } else { App.combo = 0; setTimeout(() => { this.flipped.forEach(f=>f.classList.remove('flipped')); this.flipped=[]; this.lock=false; }, 800); }
                     }
                 }; c.appendChild(el);
             });
@@ -681,7 +696,7 @@ const Games = {
         isActive: false, picks: [], correctIds: [],
         setup() {
             const c = document.getElementById('container-sort'); c.innerHTML = ''; this.picks = [];
-            let pool = shuffle(membersDB), opts = [], used = new Set();
+            let pool = shuffle(getValidPool()).slice(0, 8), opts = [], used = new Set();
             for(let m of pool) { if(!used.has(m.genNum)) { opts.push(m); used.add(m.genNum); } if(opts.length===4) break; }
             this.correctIds = [...opts].sort((a,b)=>a.genNum-b.genNum).map(m=>m.id);
             App.lastTarget = opts.find(m => m.id === this.correctIds[0]);
@@ -689,23 +704,23 @@ const Games = {
                 const el = document.createElement('div'); el.className = 'sort-card'; el.dataset.id = m.id;
                 el.innerHTML = `<div class="sort-badge"></div><img src="${m.image}"><div class="sort-gen">${getGenDisplay(m)}</div><div class="sort-name">${getRubyNameHTML(m)}</div>`;
                 el.onclick = () => {
-                    if(!this.isActive) return; el.classList.toggle('selected');
-                    if(el.classList.contains('selected')) this.picks.push(m.id); else this.picks.splice(this.picks.indexOf(m.id),1);
-                    c.querySelectorAll('.sort-card.selected').forEach(x=>x.querySelector('.sort-badge').textContent = this.picks.indexOf(x.dataset.id) + 1);
+                    if(!this.isActive) return;
+                    if(el.classList.contains('selected')) { this.picks.splice(this.picks.indexOf(m.id), 1); el.classList.remove('selected'); } 
+                    else if(this.picks.length < 4) { this.picks.push(m.id); el.classList.add('selected'); }
+                    c.querySelectorAll('.sort-card').forEach(x => {
+                        const idx = this.picks.indexOf(x.dataset.id);
+                        x.querySelector('.sort-badge').textContent = idx !== -1 ? idx + 1 : '';
+                    });
                     if(this.picks.length===4) {
                         this.isActive = false; 
-                        if(this.picks.every((id,i)=>id===this.correctIds[i])) { 
-                            c.querySelectorAll('.sort-card').forEach(x=>{x.classList.add('revealed'); x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;});
-                            c.querySelectorAll('.sort-card').forEach(x=>x.classList.add('correct'));
-                            App.addScore(800, 1-(performance.now()-App.timerStart)/App.timeLimit); 
-                        } else { 
-                            c.querySelectorAll('.sort-card').forEach(x=>{
-                                x.classList.add('wrong', 'revealed');
-                                x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;
-                            });
-                            App.combo = 0; App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score;
-                        }
-                        App.roundEndDelay(3000); 
+                        const isCorrect = this.picks.every((id,i)=>id===this.correctIds[i]);
+                        c.querySelectorAll('.sort-card').forEach(x => {
+                            x.classList.add('revealed', isCorrect ? 'correct' : 'wrong');
+                            x.querySelector('.sort-badge').textContent = this.correctIds.indexOf(x.dataset.id) + 1;
+                        });
+                        if(isCorrect) App.addScore(1000, 1-(performance.now()-App.timerStart)/App.timeLimit);
+                        else { App.combo = 0; App.score = Math.max(0, App.score-200); document.getElementById('scoreDisplay').textContent = App.score; }
+                        App.roundEndDelay(2500); 
                     }
                 }; c.appendChild(el);
             });
@@ -716,28 +731,28 @@ const Games = {
                 x.classList.add('wrong', 'revealed');
                 x.querySelector('.sort-badge').textContent=this.correctIds.indexOf(x.dataset.id)+1;
             });
-            App.roundEndDelay(3000); 
+            App.roundEndDelay(2500); 
         }
     },
     find: {
         isActive: false, nodes: [], target: null,
         setup() {
             const c = document.getElementById('container-find'); c.innerHTML = ''; c.classList.remove('dimmed'); this.nodes = [];
-            this.target = membersDB[Math.floor(Math.random()*membersDB.length)]; App.lastTarget = this.target;
+            const valid = getValidPool();
+            this.target = valid[Math.floor(Math.random()*valid.length)]; App.lastTarget = this.target;
             
             setTimeout(() => {
                 const hintStr = getRubyNameHTML(this.target) + (this.target.nickname ? ` (${this.target.nickname})` : "");
                 document.getElementById('gameTitleHint').innerHTML = `${langs[currentLang].find_hint} <span style="color:#2196F3">${hintStr}</span>`;
             }, 10);
             
-            let pool = [this.target]; while(pool.length<20) pool.push(membersDB[Math.floor(Math.random()*membersDB.length)]);
+            let pool = [this.target]; while(pool.length<20) pool.push(valid[Math.floor(Math.random()*valid.length)]);
             const rect = c.getBoundingClientRect() || {width:300, height:300}; 
             const ns = window.innerWidth > 768 ? 90 : 65; 
             
             shuffle(pool).forEach(m => {
                 const el = document.createElement('div'); el.className = 'fly-node'; el.dataset.id = m.id;
-                el.style.width=el.style.height=ns+'px';
-                el.innerHTML = `<img src="${m.image}">`; 
+                el.style.width=el.style.height=ns+'px'; el.innerHTML = `<img src="${m.image}">`; 
                 let x=Math.random()*(rect.width-ns), y=Math.random()*(rect.height-ns), a=Math.random()*Math.PI*2;
                 
                 let baseSpeed = Math.min(rect.width * 0.003, 1.8);
@@ -786,19 +801,14 @@ const Games = {
             const cDisplay = document.getElementById('colorDisplay'), opts = document.getElementById('colorOpts'); 
             cDisplay.innerHTML = ''; opts.innerHTML = '';
             
-            this.target = membersDB[Math.floor(Math.random() * membersDB.length)];
-            App.lastTarget = this.target;
+            let valid = getValidPool(); this.target = valid[Math.floor(Math.random() * valid.length)]; App.lastTarget = this.target;
             const tColorsStr = [...this.target.colorsArray].sort().join(',');
             
-            let validPool = membersDB.filter(m => {
-                if(m.id === this.target.id) return false;
-                return [...m.colorsArray].sort().join(',') !== tColorsStr;
-            });
-            
-            let distractors = shuffle(validPool).slice(0,3);
-            let pool = shuffle([this.target, ...distractors]);
+            let validPool = valid.filter(m => m.id !== this.target.id && [...m.colorsArray].sort().join(',') !== tColorsStr);
+            if(validPool.length < 3) validPool = valid.filter(m => m.id !== this.target.id);
             
             cDisplay.innerHTML = this.target.colorsArray.map(c => `<div class="color-chunk" style="background-color:${c}; border: 3px solid #fff; border-radius: 12px; box-shadow: inset 0 0 10px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.1);"></div>`).join('');
+            let pool = shuffle([this.target, ...shuffle(validPool).slice(0,3)]);
             
             pool.forEach(m => {
                 const b = document.createElement('button'); b.className = 'opt-btn'; b.dataset.id = m.id; b.innerHTML = getRubyNameHTML(m);
@@ -816,7 +826,7 @@ const Games = {
         isActive: false, target: null, px: 0, py: 0, zoom: 6,
         setup() {
             const img = document.getElementById('macroImg'), opts = document.getElementById('macroOpts'); opts.innerHTML = ''; img.style.transition = 'none';
-            let pool = shuffle(membersDB).slice(0,4); this.target = pool[0]; pool = shuffle(pool); img.src = this.target.image; App.lastTarget = this.target;
+            let valid = getValidPool(); let pool = shuffle(valid).slice(0,4); this.target = pool[0]; pool = shuffle(pool); img.src = this.target.image; App.lastTarget = this.target;
             
             this.zoom = 5 + (App.difficulty * 1.5); this.px = (Math.random()*60-30); this.py = (Math.random()*60-30);
             img.style.transform = `scale(${this.zoom}) translate(${this.px}%, ${this.py}%)`;
@@ -842,8 +852,8 @@ const Games = {
     duel: {
         isActive: false, setup() {
             const c = document.getElementById('container-duel'); c.innerHTML = '<div class="duel-vs">VS</div>';
-            let m1 = membersDB[Math.floor(Math.random()*membersDB.length)], m2;
-            do { m2 = membersDB[Math.floor(Math.random()*membersDB.length)]; } while(m1.genNum === m2.genNum);
+            let valid = getValidPool(); let m1 = valid[Math.floor(Math.random()*valid.length)], m2;
+            let attempts = 0; do { m2 = valid[Math.floor(Math.random()*valid.length)]; attempts++; if (attempts > 50) break; } while(m1.genNum === m2.genNum);
             App.lastTarget = m1.genNum < m2.genNum ? m1 : m2;
 
             [m1, m2].forEach((m, i) => {
@@ -876,10 +886,10 @@ const Games = {
         isActive: false, mx: 50, my: 50, vx: 0.5, vy: 0.5, baseMask: 65,
         setup() {
             const view = document.getElementById('smileView'), opts = document.getElementById('smileOpts'); opts.innerHTML = '';
-            view.classList.remove('revealed'); let pool = shuffle(membersDB).slice(0,4); this.target = pool[0]; App.lastTarget = this.target;
+            view.classList.remove('revealed'); let valid = getValidPool(); let pool = shuffle(valid).slice(0,4); this.target = pool[0]; App.lastTarget = this.target;
             
             const frosted = document.getElementById('smileFrosted');
-            frosted.style.transition = 'none'; // 防穿崩
+            frosted.style.transition = 'none';
             
             this.baseMask = Math.max(50 - (App.difficulty * 5), 25);
             this.mx = 30+Math.random()*40; this.my = 30+Math.random()*40;
@@ -917,7 +927,7 @@ const Games = {
         setup() {
             const c = document.getElementById('puzGrid'); Array.from(c.children).forEach(x=>{if(x.id!=='puzOverlay') x.remove();}); 
             document.getElementById('puzOverlay').style.opacity = 0;
-            this.target = membersDB[Math.floor(Math.random()*membersDB.length)]; document.getElementById('puzOverlay').src = this.target.image; this.state = []; this.sel = null;
+            let valid = getValidPool(); this.target = valid[Math.floor(Math.random()*valid.length)]; document.getElementById('puzOverlay').src = this.target.image; this.state = []; this.sel = null;
             App.lastTarget = this.target;
 
             for(let i=0; i<9; i++) this.state.push({id:i, pos:i, rot:Math.floor(Math.random()*4)});
