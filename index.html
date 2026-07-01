@@ -22,7 +22,7 @@
 
     <header class="topbar">
         <div class="topbar-left">
-            <button class="btn btn-outline" style="padding: 6px 12px; font-size:0.9rem;" id="btnHome" class="hidden">🏠 <span data-i18n="btn_home">首頁</span></button>
+            <button class="btn btn-outline hidden" style="padding: 6px 12px; font-size:0.9rem;" id="btnHome">🏠 <span data-i18n="btn_home">首頁</span></button>
             <select class="lang-select" id="langSelector">
                 <option value="zh-HK">繁體 (HK)</option>
                 <option value="zh-TW">繁體 (TW)</option>
@@ -37,11 +37,50 @@
         <div class="header-center">
             <div class="level-badge" id="userLevelDisplay">Lv.1 研究生</div>
         </div>
-        <div class="score-board">
-            <div id="comboDisplay" class="combo-pop hidden">0 COMBO</div>
-            Score: <span id="scoreDisplay">0</span>
+        <div class="topbar-right">
+            <div class="score-board">
+                <div id="comboDisplay" class="combo-pop hidden">0 COMBO</div>
+                Score: <span id="scoreDisplay">0</span>
+            </div>
+            <button class="account-toggle" id="accountToggleBtn" type="button" aria-expanded="false" aria-controls="accountPopover">
+                <span class="account-toggle-icon" aria-hidden="true">☁</span>
+                <span class="account-toggle-label" data-i18n="account_nav_guest">Account</span>
+            </button>
         </div>
     </header>
+
+    <div class="account-popover glass-panel" id="accountPopover" role="dialog" aria-labelledby="cloudPopoverTitle" hidden>
+        <div class="cloud-popover-head">
+            <div>
+                <div class="cloud-title" id="cloudPopoverTitle" data-i18n="cloud_save_title">Tool48 Account</div>
+                <div class="cloud-status" id="cloudStatus" data-i18n="cloud_local_only">Local only</div>
+            </div>
+            <button class="cloud-close-btn" id="cloudCloseBtn" type="button" aria-label="Close">×</button>
+        </div>
+
+        <p class="cloud-message" id="cloudMessage" data-i18n="cloud_login_hint">Login is optional. The game still works without an account.</p>
+
+        <form class="cloud-login-form" id="cloudLoginForm">
+            <input class="cloud-input" id="cloudNicknameInput" type="text" autocomplete="nickname" data-i18n-placeholder="cloud_nickname_placeholder" placeholder="nickname">
+            <input class="cloud-input" id="cloudEmailInput" type="email" autocomplete="email" data-i18n-placeholder="cloud_email_placeholder" placeholder="Tool48 Account email">
+            <input class="cloud-input" id="cloudPasswordInput" type="password" autocomplete="current-password" data-i18n-placeholder="cloud_password_placeholder" placeholder="6+ characters">
+            <div class="cloud-form-actions">
+                <button class="cloud-action-btn primary" id="cloudSignInBtn" type="submit" data-auth-action="signin" data-i18n="cloud_sign_in">Sign in</button>
+                <button class="cloud-action-btn" id="cloudSignUpBtn" type="submit" data-auth-action="signup" data-i18n="cloud_create_account">Create account</button>
+            </div>
+        </form>
+
+        <div class="cloud-actions" id="cloudActions" hidden>
+            <div class="cloud-user-pill" id="cloudUserLabel">Tool48 Account</div>
+            <div class="cloud-action-grid">
+                <button class="cloud-action-btn primary" id="cloudSaveBtn" type="button" data-i18n="cloud_save_now">Save / sync progress</button>
+                <button class="cloud-action-btn" id="cloudLoadBtn" type="button" data-i18n="cloud_load_progress">Load cloud progress</button>
+                <button class="cloud-action-btn" id="cloudImportBtn" type="button" data-i18n="cloud_import_local">Import local progress</button>
+                <button class="cloud-action-btn" id="cloudUseCloudBtn" type="button" data-i18n="cloud_use_cloud">Use cloud progress</button>
+            </div>
+            <button class="cloud-action-btn danger" id="cloudLogoutBtn" type="button" data-i18n="cloud_logout">Logout</button>
+        </div>
+    </div>
 
     <div class="timer-bg hidden" id="globalTimerBar"><div class="timer-fill" id="globalTimerFill"></div></div>
     <div style="text-align:center; font-weight:900; color:var(--primary); margin-bottom:2px; font-size: 1.1rem;" id="gameTitleHint" class="hidden"></div>
@@ -195,6 +234,7 @@
         希望新粉絲能進一步了解如何支持成員，現有粉絲能發掘更多推（推し増し）。網站僅供非商業用途使用，版權歸©AKB48及株式会社DH所有。由粉絲 ゴメン先生 (gomensensei) 製作。
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
 </body>
 </html>

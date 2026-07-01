@@ -39,7 +39,30 @@ input, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-se
 .level-badge { background: var(--primary); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 900; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(255,64,129,0.3); overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 .lang-select { padding: 4px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.5); font-weight: 700; outline: none; color: var(--text-main); max-width: 120px;}
+.topbar-right { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0; min-width: 0; }
 .score-board { position: relative; font-size: 1rem; font-weight: 900; color: var(--primary); background: rgba(255,255,255,0.9); padding: 4px 12px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); flex-shrink: 0;}
+.account-toggle { min-height: 32px; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,64,129,0.35); background: rgba(255,255,255,0.9); color: var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.06); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-weight: 900; font-size: 0.82rem; max-width: 150px; }
+.account-toggle:hover { transform: translateY(-1px); }
+.account-toggle-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-toggle-icon { font-size: 0.95rem; line-height: 1; }
+
+.account-popover[hidden], .cloud-login-form[hidden], .cloud-actions[hidden] { display: none !important; }
+.account-popover { position: fixed; top: 54px; right: 12px; width: min(340px, calc(100vw - 24px)); z-index: 220; padding: 14px; border-radius: 18px; background: rgba(255,255,255,0.92); color: var(--text-main); }
+.cloud-popover-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.cloud-title { font-size: 0.98rem; font-weight: 900; color: var(--primary); line-height: 1.2; }
+.cloud-status { margin-top: 3px; font-size: 0.78rem; font-weight: 900; color: var(--text-sec); }
+.cloud-close-btn { border: none; background: rgba(255,64,129,0.1); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; font-size: 1.25rem; font-weight: 900; cursor: pointer; line-height: 1; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cloud-message { margin: 8px 0 12px; color: var(--text-sec); font-size: 0.78rem; line-height: 1.45; font-weight: 700; }
+.cloud-login-form { display: grid; gap: 8px; }
+.cloud-input { width: 100%; min-height: 36px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(255,64,129,0.24); background: rgba(255,255,255,0.88); color: var(--text-main); font-weight: 700; outline: none; }
+.cloud-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255,64,129,0.12); }
+.cloud-form-actions, .cloud-action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cloud-actions { display: grid; gap: 10px; }
+.cloud-user-pill { padding: 7px 10px; border-radius: 12px; background: rgba(255,64,129,0.09); color: var(--primary); font-size: 0.78rem; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-action-btn { min-height: 34px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(255,64,129,0.28); background: rgba(255,255,255,0.88); color: var(--primary); font-size: 0.76rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-align: center; line-height: 1.2; }
+.cloud-action-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.cloud-action-btn.danger { color: #C62828; border-color: rgba(198,40,40,0.25); }
+.cloud-action-btn:disabled, .cloud-input:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .combo-pop { position: absolute; bottom: -30px; right: 5px; color: #FFD700; font-weight: 900; font-size: 1.2rem; text-shadow: 0 2px 5px rgba(0,0,0,0.5); animation: comboPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; white-space: nowrap; z-index: 100;}
 .floating-perfect { position: absolute; top: 20%; left: 50%; transform: translate(-50%,-50%); color: #FFD700; font-size: 3rem; font-weight: 900; z-index: 100; pointer-events: none; text-shadow: 0 0 20px #FF4081; animation: comboPop 0.8s forwards; white-space: nowrap; }
@@ -165,6 +188,11 @@ rt { font-size: 0.6em; color: var(--primary); font-weight: 900; transform: trans
     #btnHome { padding: 4px 8px; font-size: 0.75rem; }
     .level-badge { font-size: 0.65rem; padding: 3px 6px; }
     .score-board { font-size: 0.8rem; padding: 4px 8px; }
+    .topbar-right { gap: 4px; }
+    .account-toggle { min-width: 32px; max-width: 40px; padding: 4px 8px; }
+    .account-toggle-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .account-popover { top: 48px; right: 8px; width: calc(100vw - 16px); padding: 12px; }
+    .cloud-form-actions, .cloud-action-grid { grid-template-columns: 1fr; }
     .combo-pop { font-size: 0.9rem; bottom: -20px; right: 0; }
     .floating-perfect { font-size: 1.8rem; }
     

@@ -3,28 +3,68 @@ let langs = {};
 let currentLang = 'zh-HK';
 let leaderboard = [];
 
+const SUPABASE_URL = "https://jappifgnjssqxvjodgiv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_oXfJyHkRtn1BHBw-9ictBQ__01qBCZg";
+const GAME_PROGRESS_STORAGE_KEY = "akb_game_progress";
+const CLOUD_GAME_SLUG_GLOBAL = "fan_quest_global";
+
+function readStoredJson(key, fallback) {
+    try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+    } catch (err) {
+        console.warn(`Failed to parse localStorage key: ${key}`, err);
+        return fallback;
+    }
+}
+
+function uniqueIds(ids) {
+    return [...new Set((Array.isArray(ids) ? ids : []).map(id => String(id)).filter(Boolean))];
+}
+
+function normalizeGameProgress(progress = {}) {
+    return {
+        version: 1,
+        totalSessions: Number(progress.totalSessions) || 0,
+        lastPlayedAt: progress.lastPlayedAt || null,
+        lastMode: progress.lastMode || null,
+        lastScore: Number(progress.lastScore) || 0,
+        modes: progress.modes && typeof progress.modes === "object" ? progress.modes : {},
+        games: progress.games && typeof progress.games === "object" ? progress.games : {}
+    };
+}
+
+function getCurrentLevel(score = userData.totalScore) {
+    return Math.floor((Number(score) || 0) / 10000) + 1;
+}
+
 // 🌟 RPG 數據存儲
 let userData = {
     totalScore: parseInt(localStorage.getItem('akb_total_xp')) || 0,
-    unlockedIds: JSON.parse(localStorage.getItem('akb_unlocked')) || [],
-    myOshiId: localStorage.getItem('akb_my_oshi') || null
+    unlockedIds: uniqueIds(readStoredJson('akb_unlocked', [])),
+    myOshiId: localStorage.getItem('akb_my_oshi') || null,
+    gameProgress: normalizeGameProgress(readStoredJson(GAME_PROGRESS_STORAGE_KEY, {}))
 };
 
-function saveUserData() {
+function saveUserData(options = {}) {
     // 確保存入時剔除重複及 null 數據
-    userData.unlockedIds = [...new Set(userData.unlockedIds)].filter(Boolean);
+    userData.unlockedIds = uniqueIds(userData.unlockedIds);
+    userData.gameProgress = normalizeGameProgress(userData.gameProgress);
     localStorage.setItem('akb_total_xp', userData.totalScore);
     localStorage.setItem('akb_unlocked', JSON.stringify(userData.unlockedIds));
     localStorage.setItem('akb_my_oshi', userData.myOshiId);
+    localStorage.setItem(GAME_PROGRESS_STORAGE_KEY, JSON.stringify(userData.gameProgress));
+    if (!options.skipCloud) scheduleCloudSave("local_change");
 }
 
 function getLevelLabel(score) {
-    if (score > 2000000) return langs[currentLang].lv_6 || "傳奇";
-    if (score > 1000000) return langs[currentLang].lv_5 || "神 7";
-    if (score > 500000) return langs[currentLang].lv_4 || "選拔";
-    if (score > 200000) return langs[currentLang].lv_3 || "正規";
-    if (score > 50000) return langs[currentLang].lv_2 || "候補";
-    return langs[currentLang].lv_1 || "研究生";
+    const lang = langs[currentLang] || {};
+    if (score > 2000000) return lang.lv_6 || "傳奇";
+    if (score > 1000000) return lang.lv_5 || "神 7";
+    if (score > 500000) return lang.lv_4 || "選拔";
+    if (score > 200000) return lang.lv_3 || "正規";
+    if (score > 50000) return lang.lv_2 || "候補";
+    return lang.lv_1 || "研究生";
 }
 
 function getGenYear(m) {
@@ -186,6 +226,8 @@ function applyLang() {
             if (shareBtn) shareBtn.textContent = (App.mode === 'classic') ? langs[currentLang].btn_share_lb : langs[currentLang].btn_share;
         }, 10);
     }
+
+    updateCloudUI();
 }
 
 function populateInstructionsModal() {
@@ -219,6 +261,664 @@ function getShortName(g) { return langs[currentLang] ? langs[currentLang]['gs_' 
 function getGenDisplay(member) { 
     const year = getGenYear(member);
     return year ? `${member.genString} (${year})` : member.genString;
+}
+
+function t(key, replacements = {}) {
+    const lang = langs[currentLang] || langs.en || {};
+    const fallback = langs.en || {};
+    let text = lang[key] || fallback[key] || key;
+    Object.entries(replacements).forEach(([name, value]) => {
+        text = text.split(`{${name}}`).join(value ?? "");
+    });
+    return text;
+}
+
+const cloud = {
+    client: null,
+    user: null,
+    ready: false,
+    busy: false,
+    eventsBound: false,
+    syncEnabled: false,
+    saveTimer: null,
+    statusKey: "cloud_local_only",
+    messageKey: "cloud_login_hint",
+    messageVars: {},
+    profile: null,
+    progressRows: [],
+    dexRows: [],
+    cloudSnapshot: null
+};
+
+function getCloudDisplayName() {
+    return cloud.user?.user_metadata?.display_name || cloud.user?.email || "Tool48 Account";
+}
+
+function setCloudBusy(isBusy) {
+    cloud.busy = isBusy;
+    updateCloudUI();
+}
+
+function setCloudMessageKey(key, vars = {}) {
+    cloud.messageKey = key;
+    cloud.messageVars = { ...vars };
+    renderCloudMessage();
+}
+
+function renderCloudMessage() {
+    const message = document.getElementById("cloudMessage");
+    if (message) message.textContent = t(cloud.messageKey, cloud.messageVars);
+}
+
+function updateCloudUI(statusKey = "") {
+    if (statusKey) cloud.statusKey = statusKey;
+    const loggedIn = Boolean(cloud.user);
+    const status = document.getElementById("cloudStatus");
+    const toggle = document.getElementById("accountToggleBtn");
+    const label = toggle?.querySelector(".account-toggle-label");
+    const form = document.getElementById("cloudLoginForm");
+    const actions = document.getElementById("cloudActions");
+    const userLabel = document.getElementById("cloudUserLabel");
+
+    if (status) {
+        const key = cloud.ready ? cloud.statusKey : "cloud_unavailable";
+        status.textContent = t(key);
+    }
+    if (label) label.textContent = loggedIn ? getCloudDisplayName() : t("account_nav_guest");
+    if (toggle) toggle.title = loggedIn ? getCloudDisplayName() : t("account_nav_guest");
+    if (form) form.hidden = loggedIn || !cloud.ready;
+    if (actions) actions.hidden = !loggedIn || !cloud.ready;
+    if (userLabel) userLabel.textContent = loggedIn ? t("cloud_logged_in_as", { name: getCloudDisplayName() }) : "";
+
+    ["cloudNicknameInput", "cloudEmailInput", "cloudPasswordInput", "cloudSignInBtn", "cloudSignUpBtn"].forEach(id => {
+        const node = document.getElementById(id);
+        if (node) node.disabled = cloud.busy || loggedIn || !cloud.ready;
+    });
+    ["cloudSaveBtn", "cloudLoadBtn", "cloudImportBtn", "cloudUseCloudBtn", "cloudLogoutBtn"].forEach(id => {
+        const node = document.getElementById(id);
+        if (node) node.disabled = cloud.busy || !loggedIn || !cloud.ready;
+    });
+
+    const importBtn = document.getElementById("cloudImportBtn");
+    const useCloudBtn = document.getElementById("cloudUseCloudBtn");
+    if (importBtn) importBtn.disabled = cloud.busy || !loggedIn || !cloud.ready || !hasLocalProgress();
+    if (useCloudBtn) useCloudBtn.disabled = cloud.busy || !loggedIn || !cloud.ready || !cloud.cloudSnapshot;
+    renderCloudMessage();
+}
+
+function hasLocalProgress() {
+    const progress = normalizeGameProgress(userData.gameProgress);
+    return Boolean(
+        Number(userData.totalScore) > 0 ||
+        uniqueIds(userData.unlockedIds).length > 0 ||
+        userData.myOshiId ||
+        progress.totalSessions > 0
+    );
+}
+
+function hasSnapshotProgress(snapshot) {
+    if (!snapshot) return false;
+    const progress = normalizeGameProgress(snapshot.gameProgress);
+    return Boolean(
+        Number(snapshot.xp ?? snapshot.totalScore) > 0 ||
+        uniqueIds(snapshot.unlockedIds).length > 0 ||
+        snapshot.myOshiId ||
+        progress.totalSessions > 0
+    );
+}
+
+function sortObject(value) {
+    if (Array.isArray(value)) return value.map(sortObject);
+    if (!value || typeof value !== "object") return value;
+    return Object.keys(value).sort().reduce((sorted, key) => {
+        sorted[key] = sortObject(value[key]);
+        return sorted;
+    }, {});
+}
+
+function comparableSnapshot(snapshot) {
+    if (!snapshot) return null;
+    return {
+        xp: Number(snapshot.xp ?? snapshot.totalScore) || 0,
+        myOshiId: snapshot.myOshiId || null,
+        unlockedIds: uniqueIds(snapshot.unlockedIds).sort(),
+        gameProgress: sortObject(normalizeGameProgress(snapshot.gameProgress))
+    };
+}
+
+function snapshotsDiffer(a, b) {
+    return JSON.stringify(comparableSnapshot(a)) !== JSON.stringify(comparableSnapshot(b));
+}
+
+function buildMemberCardData(member, fallbackId) {
+    return {
+        member_id: String(member?.id || fallbackId),
+        name_ja: member?.name_ja || "",
+        name_en: member?.name_en || "",
+        nickname: member?.nickname || "",
+        generation: member?.genString || "",
+        image: member?.image || "",
+        colors: member?.colorsArray || []
+    };
+}
+
+function buildMemberDexSnapshot() {
+    const now = new Date().toISOString();
+    return uniqueIds(userData.unlockedIds).map(memberId => {
+        const member = membersDB.find(m => String(m.id) === String(memberId));
+        return {
+            member_id: String(memberId),
+            unlocked_at: now,
+            card_data: buildMemberCardData(member, memberId)
+        };
+    });
+}
+
+function buildFanQuestSnapshot() {
+    const xp = Number(userData.totalScore) || 0;
+    const unlockedIds = uniqueIds(userData.unlockedIds);
+    return {
+        version: 1,
+        app: "akb_mini_games_2026",
+        savedAt: new Date().toISOString(),
+        level: getCurrentLevel(xp),
+        xp,
+        totalScore: xp,
+        title: getLevelLabel(xp),
+        myOshiId: userData.myOshiId || null,
+        unlockedIds,
+        achievements: [],
+        gameProgress: normalizeGameProgress(userData.gameProgress),
+        memberDex: buildMemberDexSnapshot()
+    };
+}
+
+function buildProgressPayloads(snapshot) {
+    const progress = normalizeGameProgress(snapshot.gameProgress);
+    const rows = [{
+        game_slug: CLOUD_GAME_SLUG_GLOBAL,
+        progress_data: {
+            app: snapshot.app,
+            savedAt: snapshot.savedAt,
+            level: snapshot.level,
+            xp: snapshot.xp,
+            title: snapshot.title,
+            myOshiId: snapshot.myOshiId,
+            unlockedIds: snapshot.unlockedIds,
+            gameProgress: progress
+        }
+    }];
+
+    Object.entries(progress.modes || {}).forEach(([mode, data]) => {
+        rows.push({
+            game_slug: `mode_${mode}`,
+            progress_data: { savedAt: snapshot.savedAt, mode, modeData: data }
+        });
+    });
+    Object.entries(progress.games || {}).forEach(([gameId, data]) => {
+        rows.push({
+            game_slug: `game_${gameId}`,
+            progress_data: { savedAt: snapshot.savedAt, gameId, gameData: data }
+        });
+    });
+    return rows;
+}
+
+function cloudRowsToSnapshot(profile, progressRows = [], dexRows = []) {
+    const profileData = profile?.profile_data && typeof profile.profile_data === "object" ? profile.profile_data : {};
+    const globalRow = progressRows.find(row => row.game_slug === CLOUD_GAME_SLUG_GLOBAL);
+    const globalData = globalRow?.progress_data && typeof globalRow.progress_data === "object" ? globalRow.progress_data : {};
+    let gameProgress = normalizeGameProgress(profileData.gameProgress || globalData.gameProgress || globalData);
+
+    progressRows.forEach(row => {
+        const data = row.progress_data && typeof row.progress_data === "object" ? row.progress_data : {};
+        if (row.game_slug?.startsWith("mode_")) {
+            gameProgress.modes[row.game_slug.replace("mode_", "")] = data.modeData || data;
+        }
+        if (row.game_slug?.startsWith("game_")) {
+            gameProgress.games[row.game_slug.replace("game_", "")] = data.gameData || data;
+        }
+    });
+
+    const profileDex = Array.isArray(profileData.memberDex) ? profileData.memberDex : [];
+    const dexIds = dexRows.map(row => row.member_id);
+    const unlockedIds = uniqueIds([...(profileData.unlockedIds || []), ...dexIds]);
+    const memberDex = unlockedIds.map(memberId => {
+        const dexRow = dexRows.find(row => String(row.member_id) === String(memberId));
+        const profileEntry = profileDex.find(entry => String(entry.member_id) === String(memberId));
+        const member = membersDB.find(m => String(m.id) === String(memberId));
+        return {
+            member_id: String(memberId),
+            unlocked_at: dexRow?.unlocked_at || profileEntry?.unlocked_at || profileData.savedAt || new Date().toISOString(),
+            card_data: dexRow?.card_data || profileEntry?.card_data || buildMemberCardData(member, memberId)
+        };
+    });
+
+    const xp = Number(profile?.xp ?? profileData.xp ?? profileData.totalScore ?? globalData.xp) || 0;
+    return {
+        version: 1,
+        app: profileData.app || "akb_mini_games_2026",
+        savedAt: profile?.updated_at || profileData.savedAt || globalData.savedAt || null,
+        level: Number(profile?.level ?? profileData.level ?? globalData.level) || getCurrentLevel(xp),
+        xp,
+        totalScore: xp,
+        title: profile?.title || profileData.title || globalData.title || getLevelLabel(xp),
+        myOshiId: profileData.myOshiId || globalData.myOshiId || null,
+        unlockedIds,
+        achievements: Array.isArray(profileData.achievements) ? profileData.achievements : [],
+        gameProgress,
+        memberDex
+    };
+}
+
+function applyFanQuestSnapshot(snapshot) {
+    if (!snapshot) return;
+    const xp = Number(snapshot.xp ?? snapshot.totalScore) || 0;
+    userData.totalScore = xp;
+    userData.unlockedIds = uniqueIds(snapshot.unlockedIds || snapshot.memberDex?.map(entry => entry.member_id));
+    userData.myOshiId = snapshot.myOshiId || null;
+    userData.gameProgress = normalizeGameProgress(snapshot.gameProgress);
+    saveUserData({ skipCloud: true });
+    App.updateHeaderStats();
+    const albumModal = document.getElementById("albumModal");
+    if (albumModal && !albumModal.classList.contains("hidden")) App.showAlbum();
+}
+
+function scheduleCloudSave(reason = "local_change") {
+    if (!cloud.ready || !cloud.user || !cloud.syncEnabled) return;
+    clearTimeout(cloud.saveTimer);
+    updateCloudUI("cloud_unsaved_changes");
+    cloud.saveTimer = setTimeout(() => {
+        saveCloudSnapshot({ silent: true, force: true, reason }).catch(err => {
+            console.warn("Cloud autosave failed", err);
+        });
+    }, 4000);
+}
+
+function requireCloudUser() {
+    if (cloud.ready && cloud.user && cloud.client) return true;
+    updateCloudUI("cloud_local_only");
+    setCloudMessageKey("cloud_login_required");
+    return false;
+}
+
+async function initCloudSave() {
+    bindCloudEvents();
+    updateCloudUI("cloud_local_only");
+    if (!window.supabase?.createClient) {
+        cloud.ready = false;
+        setCloudMessageKey("cloud_unavailable");
+        updateCloudUI("cloud_unavailable");
+        return;
+    }
+
+    try {
+        cloud.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+        });
+        cloud.ready = true;
+        const { data, error } = await cloud.client.auth.getSession();
+        if (error) throw error;
+        cloud.user = data.session?.user || null;
+        cloud.client.auth.onAuthStateChange(async (event, session) => {
+            cloud.user = session?.user || null;
+            cloud.syncEnabled = false;
+            cloud.cloudSnapshot = null;
+            if (!cloud.user) {
+                setCloudMessageKey(event === "SIGNED_OUT" ? "cloud_logged_out" : "cloud_login_hint");
+                updateCloudUI("cloud_local_only");
+                return;
+            }
+            setCloudMessageKey("cloud_signed_in");
+            updateCloudUI("cloud_save_available");
+            await loadCloudSnapshot({ silent: true, promptConflict: true });
+        });
+        if (cloud.user) {
+            await loadCloudSnapshot({ silent: true, promptConflict: true });
+        } else {
+            setCloudMessageKey("cloud_login_hint");
+            updateCloudUI("cloud_local_only");
+        }
+    } catch (err) {
+        console.warn("Cloud Save init failed", err);
+        cloud.ready = false;
+        setCloudMessageKey("cloud_unavailable");
+        updateCloudUI("cloud_unavailable");
+    }
+}
+
+function bindCloudEvents() {
+    if (cloud.eventsBound) return;
+    cloud.eventsBound = true;
+    const popover = document.getElementById("accountPopover");
+    const toggle = document.getElementById("accountToggleBtn");
+
+    toggle?.addEventListener("click", event => {
+        event.stopPropagation();
+        if (!popover || !toggle) return;
+        const isOpen = !popover.hidden;
+        popover.hidden = isOpen;
+        toggle.setAttribute("aria-expanded", String(!isOpen));
+    });
+    document.getElementById("cloudCloseBtn")?.addEventListener("click", () => {
+        if (popover) popover.hidden = true;
+        toggle?.setAttribute("aria-expanded", "false");
+    });
+    document.addEventListener("click", event => {
+        if (!popover || popover.hidden) return;
+        if (popover.contains(event.target) || toggle?.contains(event.target)) return;
+        popover.hidden = true;
+        toggle?.setAttribute("aria-expanded", "false");
+    });
+
+    document.getElementById("cloudLoginForm")?.addEventListener("submit", loginCloudAccount);
+    document.getElementById("cloudLogoutBtn")?.addEventListener("click", logoutCloudAccount);
+    document.getElementById("cloudSaveBtn")?.addEventListener("click", () => saveCloudSnapshot({ manual: true }));
+    document.getElementById("cloudImportBtn")?.addEventListener("click", importLocalProgressToCloud);
+    document.getElementById("cloudLoadBtn")?.addEventListener("click", loadCloudProgressIntoLocal);
+    document.getElementById("cloudUseCloudBtn")?.addEventListener("click", loadCloudProgressIntoLocal);
+}
+
+async function loginCloudAccount(event) {
+    event.preventDefault();
+    if (!cloud.client) {
+        setCloudMessageKey("cloud_unavailable");
+        updateCloudUI("cloud_unavailable");
+        return;
+    }
+
+    const action = event.submitter?.dataset.authAction === "signup" ? "signup" : "signin";
+    const nickname = document.getElementById("cloudNicknameInput")?.value.trim() || "";
+    const email = document.getElementById("cloudEmailInput")?.value.trim() || "";
+    const password = document.getElementById("cloudPasswordInput")?.value || "";
+
+    if (!email || !password) {
+        setCloudMessageKey("cloud_missing_email_password");
+        return;
+    }
+    if (action === "signup" && !nickname) {
+        setCloudMessageKey("cloud_missing_signup");
+        return;
+    }
+
+    setCloudBusy(true);
+    setCloudMessageKey(action === "signup" ? "cloud_signing_up" : "cloud_signing_in");
+    try {
+        const result = action === "signup"
+            ? await cloud.client.auth.signUp({
+                email,
+                password,
+                options: { data: { display_name: nickname } }
+            })
+            : await cloud.client.auth.signInWithPassword({ email, password });
+        if (result.error) throw result.error;
+        cloud.user = result.data.session?.user || cloud.user;
+        setCloudMessageKey(cloud.user ? "cloud_signed_in" : "cloud_signup_needs_confirm");
+        updateCloudUI(cloud.user ? "cloud_save_available" : "cloud_local_only");
+        if (cloud.user) {
+            document.getElementById("accountPopover").hidden = true;
+            document.getElementById("accountToggleBtn")?.setAttribute("aria-expanded", "false");
+            await loadCloudSnapshot({ silent: true, promptConflict: true });
+        }
+    } catch (err) {
+        console.warn("Account action failed", err);
+        setCloudMessageKey("cloud_action_failed", { message: err.message || "" });
+        updateCloudUI("cloud_save_failed_local_kept");
+    } finally {
+        setCloudBusy(false);
+    }
+}
+
+async function logoutCloudAccount() {
+    if (!cloud.client) return;
+    setCloudBusy(true);
+    try {
+        await cloud.client.auth.signOut();
+        cloud.user = null;
+        cloud.syncEnabled = false;
+        cloud.cloudSnapshot = null;
+        setCloudMessageKey("cloud_logged_out");
+        updateCloudUI("cloud_local_only");
+    } catch (err) {
+        console.warn("Logout failed", err);
+        setCloudMessageKey("cloud_action_failed", { message: err.message || "" });
+    } finally {
+        setCloudBusy(false);
+    }
+}
+
+async function loadCloudSnapshot({ silent = false, promptConflict = true } = {}) {
+    if (!requireCloudUser()) return null;
+    if (!silent) setCloudBusy(true);
+    if (!silent) updateCloudUI("cloud_syncing");
+    try {
+        const userId = cloud.user.id;
+        const [profileRes, progressRes, dexRes] = await Promise.all([
+            cloud.client.from("fan_quest_profiles").select("user_id,level,xp,title,profile_data,updated_at").eq("user_id", userId).maybeSingle(),
+            cloud.client.from("fan_quest_progress").select("id,user_id,game_slug,progress_data,updated_at").eq("user_id", userId),
+            cloud.client.from("fan_quest_member_dex").select("user_id,member_id,unlocked_at,card_data").eq("user_id", userId)
+        ]);
+
+        if (profileRes.error) throw profileRes.error;
+        if (progressRes.error) throw progressRes.error;
+        if (dexRes.error) throw dexRes.error;
+
+        cloud.profile = profileRes.data || null;
+        cloud.progressRows = progressRes.data || [];
+        cloud.dexRows = dexRes.data || [];
+        const hasCloudRows = Boolean(cloud.profile || cloud.progressRows.length || cloud.dexRows.length);
+        cloud.cloudSnapshot = hasCloudRows ? cloudRowsToSnapshot(cloud.profile, cloud.progressRows, cloud.dexRows) : null;
+
+        if (!cloud.cloudSnapshot) {
+            cloud.syncEnabled = false;
+            setCloudMessageKey(hasLocalProgress() ? "cloud_no_profile_import" : "cloud_no_profile");
+            updateCloudUI("cloud_save_available");
+            return null;
+        }
+
+        const localSnapshot = buildFanQuestSnapshot();
+        const localHasProgress = hasLocalProgress();
+        const differs = snapshotsDiffer(localSnapshot, cloud.cloudSnapshot);
+        if (!localHasProgress || !differs) {
+            applyFanQuestSnapshot(cloud.cloudSnapshot);
+            cloud.syncEnabled = true;
+            setCloudMessageKey("cloud_progress_loaded");
+            updateCloudUI("cloud_progress_loaded");
+        } else if (promptConflict) {
+            cloud.syncEnabled = false;
+            setCloudMessageKey("cloud_conflict");
+            updateCloudUI("cloud_unsaved_changes");
+        } else {
+            setCloudMessageKey("cloud_save_available");
+            updateCloudUI("cloud_save_available");
+        }
+        return cloud.cloudSnapshot;
+    } catch (err) {
+        console.warn("Load cloud progress failed", err);
+        setCloudMessageKey("cloud_load_failed", { message: err.message || "" });
+        updateCloudUI("cloud_save_failed_local_kept");
+        return null;
+    } finally {
+        if (!silent) setCloudBusy(false);
+    }
+}
+
+async function saveCloudSnapshot({ manual = false, silent = false, force = false, reason = "manual" } = {}) {
+    if (!requireCloudUser()) return;
+    const snapshot = buildFanQuestSnapshot();
+    if (!force && cloud.cloudSnapshot && !cloud.syncEnabled && snapshotsDiffer(snapshot, cloud.cloudSnapshot)) {
+        const ok = window.confirm(t("cloud_confirm_overwrite"));
+        if (!ok) {
+            setCloudMessageKey("cloud_conflict_cancelled");
+            updateCloudUI("cloud_unsaved_changes");
+            return;
+        }
+    }
+
+    if (!silent) setCloudBusy(true);
+    updateCloudUI("cloud_syncing");
+    try {
+        const userId = cloud.user.id;
+        const profilePayload = {
+            user_id: userId,
+            level: snapshot.level,
+            xp: snapshot.xp,
+            title: snapshot.title,
+            profile_data: { ...snapshot, saveReason: reason },
+            updated_at: snapshot.savedAt
+        };
+
+        await upsertProfileRecord(profilePayload);
+
+        for (const row of buildProgressPayloads(snapshot)) {
+            await upsertProgressRecord(row.game_slug, row.progress_data);
+        }
+
+        if (snapshot.memberDex.length) {
+            await upsertMemberDexRows(snapshot.memberDex);
+        }
+
+        cloud.profile = profilePayload;
+        cloud.cloudSnapshot = snapshot;
+        cloud.syncEnabled = true;
+        setCloudMessageKey(manual ? "cloud_saved" : "cloud_synced");
+        updateCloudUI("cloud_synced");
+    } catch (err) {
+        console.warn("Save cloud progress failed", err);
+        setCloudMessageKey("cloud_save_failed", { message: err.message || "" });
+        updateCloudUI("cloud_save_failed_local_kept");
+    } finally {
+        if (!silent) setCloudBusy(false);
+    }
+}
+
+async function upsertProgressRecord(gameSlug, progressData) {
+    const payload = {
+        user_id: cloud.user.id,
+        game_slug: gameSlug,
+        progress_data: progressData,
+        updated_at: new Date().toISOString()
+    };
+    const { error } = await cloud.client
+        .from("fan_quest_progress")
+        .upsert(payload, { onConflict: "user_id,game_slug" });
+    if (!error) return;
+    if (error.code !== "42P10") throw error;
+
+    const existing = await cloud.client
+        .from("fan_quest_progress")
+        .select("id")
+        .eq("user_id", payload.user_id)
+        .eq("game_slug", payload.game_slug)
+        .maybeSingle();
+    if (existing.error) throw error;
+    if (existing.data?.id) {
+        const updateResult = await cloud.client
+            .from("fan_quest_progress")
+            .update({ progress_data: payload.progress_data, updated_at: payload.updated_at })
+            .eq("id", existing.data.id);
+        if (updateResult.error) throw updateResult.error;
+    } else {
+        const insertResult = await cloud.client.from("fan_quest_progress").insert(payload);
+        if (insertResult.error) throw insertResult.error;
+    }
+}
+
+async function upsertProfileRecord(profilePayload) {
+    const { error } = await cloud.client
+        .from("fan_quest_profiles")
+        .upsert(profilePayload, { onConflict: "user_id" });
+    if (!error) return;
+    if (error.code !== "42P10") throw error;
+
+    const existing = await cloud.client
+        .from("fan_quest_profiles")
+        .select("user_id")
+        .eq("user_id", profilePayload.user_id)
+        .maybeSingle();
+    if (existing.error) throw error;
+    if (existing.data?.user_id) {
+        const updateResult = await cloud.client
+            .from("fan_quest_profiles")
+            .update({
+                level: profilePayload.level,
+                xp: profilePayload.xp,
+                title: profilePayload.title,
+                profile_data: profilePayload.profile_data,
+                updated_at: profilePayload.updated_at
+            })
+            .eq("user_id", profilePayload.user_id);
+        if (updateResult.error) throw updateResult.error;
+    } else {
+        const insertResult = await cloud.client.from("fan_quest_profiles").insert(profilePayload);
+        if (insertResult.error) throw insertResult.error;
+    }
+}
+
+async function upsertMemberDexRows(memberDex) {
+    const rows = memberDex.map(entry => ({
+        user_id: cloud.user.id,
+        member_id: String(entry.member_id),
+        unlocked_at: entry.unlocked_at || new Date().toISOString(),
+        card_data: entry.card_data || {}
+    }));
+    const { error } = await cloud.client
+        .from("fan_quest_member_dex")
+        .upsert(rows, { onConflict: "user_id,member_id" });
+    if (!error) return;
+    if (error.code !== "42P10") throw error;
+
+    for (const row of rows) {
+        const existing = await cloud.client
+            .from("fan_quest_member_dex")
+            .select("member_id")
+            .eq("user_id", row.user_id)
+            .eq("member_id", row.member_id)
+            .maybeSingle();
+        if (existing.error) throw error;
+        if (existing.data?.member_id) {
+            const updateResult = await cloud.client
+                .from("fan_quest_member_dex")
+                .update({ card_data: row.card_data })
+                .eq("user_id", row.user_id)
+                .eq("member_id", row.member_id);
+            if (updateResult.error) throw updateResult.error;
+        } else {
+            const insertResult = await cloud.client.from("fan_quest_member_dex").insert(row);
+            if (insertResult.error) throw insertResult.error;
+        }
+    }
+}
+
+async function importLocalProgressToCloud() {
+    if (!requireCloudUser()) return;
+    const ok = window.confirm(t("cloud_confirm_import"));
+    if (!ok) {
+        setCloudMessageKey("cloud_conflict_cancelled");
+        return;
+    }
+    await saveCloudSnapshot({ manual: true, force: true, reason: "import_local" });
+}
+
+async function loadCloudProgressIntoLocal() {
+    if (!requireCloudUser()) return;
+    let snapshot = cloud.cloudSnapshot;
+    if (!snapshot) snapshot = await loadCloudSnapshot({ silent: false, promptConflict: false });
+    if (!snapshot) return;
+
+    if (hasLocalProgress() && snapshotsDiffer(buildFanQuestSnapshot(), snapshot)) {
+        const ok = window.confirm(t("cloud_confirm_use_cloud"));
+        if (!ok) {
+            setCloudMessageKey("cloud_conflict_cancelled");
+            updateCloudUI("cloud_unsaved_changes");
+            return;
+        }
+    }
+
+    applyFanQuestSnapshot(snapshot);
+    cloud.syncEnabled = true;
+    setCloudMessageKey("cloud_progress_loaded");
+    updateCloudUI("cloud_progress_loaded");
 }
 
 document.getElementById('langSelector').addEventListener('change', (e) => { currentLang = e.target.value; applyLang(); });
@@ -280,6 +980,7 @@ const App = {
         this.updateHeaderStats();
         populateInstructionsModal();
         document.getElementById('btnHome').onclick = () => this.goHome();
+        initCloudSave();
         
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('lb')) {
@@ -288,7 +989,7 @@ const App = {
     },
 
     updateHeaderStats() {
-        document.getElementById('userLevelDisplay').textContent = `Lv.${Math.floor(userData.totalScore/10000) + 1} ${getLevelLabel(userData.totalScore)}`;
+        document.getElementById('userLevelDisplay').textContent = `Lv.${getCurrentLevel()} ${getLevelLabel(userData.totalScore)}`;
         const uniqueUnlocked = new Set(userData.unlockedIds);
         let validCount = 0;
         membersDB.forEach(m => { if (uniqueUnlocked.has(m.id)) validCount++; });
@@ -524,7 +1225,41 @@ const App = {
         this.delayTimeout = setTimeout(() => this.nextRound(), this.getDelay(ms));
     },
 
+    recordCompletedSession() {
+        const progress = normalizeGameProgress(userData.gameProgress);
+        const now = new Date().toISOString();
+        const mode = this.mode || "unknown";
+        const modeEntry = {
+            ...(progress.modes[mode] || {}),
+            playCount: (Number(progress.modes[mode]?.playCount) || 0) + 1,
+            highScore: Math.max(Number(progress.modes[mode]?.highScore) || 0, this.score),
+            lastScore: this.score,
+            lastPlayedAt: now,
+            games: [...this.queue]
+        };
+        progress.modes[mode] = modeEntry;
+
+        this.queue.forEach(gameId => {
+            const gameEntry = progress.games[gameId] || {};
+            progress.games[gameId] = {
+                ...gameEntry,
+                playCount: (Number(gameEntry.playCount) || 0) + 1,
+                lastMode: mode,
+                lastSessionScore: this.score,
+                lastPlayedAt: now
+            };
+        });
+
+        progress.totalSessions += 1;
+        progress.lastPlayedAt = now;
+        progress.lastMode = mode;
+        progress.lastScore = this.score;
+        userData.gameProgress = progress;
+        saveUserData();
+    },
+
     showFinalResult() {
+        this.recordCompletedSession();
         this.generateResultCanvas();
         if (this.mode === 'classic') {
             document.getElementById('playerName').classList.remove('hidden');
