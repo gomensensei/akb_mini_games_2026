@@ -287,6 +287,7 @@ const cloud = {
     profile: null,
     progressRows: [],
     dexRows: [],
+    dexFkWarning: false,
     cloudSnapshot: null
 };
 
@@ -334,15 +335,10 @@ function updateCloudUI(statusKey = "") {
         const node = document.getElementById(id);
         if (node) node.disabled = cloud.busy || loggedIn || !cloud.ready;
     });
-    ["cloudSaveBtn", "cloudLoadBtn", "cloudImportBtn", "cloudUseCloudBtn", "cloudLogoutBtn"].forEach(id => {
+    ["cloudLogoutBtn"].forEach(id => {
         const node = document.getElementById(id);
         if (node) node.disabled = cloud.busy || !loggedIn || !cloud.ready;
     });
-
-    const importBtn = document.getElementById("cloudImportBtn");
-    const useCloudBtn = document.getElementById("cloudUseCloudBtn");
-    if (importBtn) importBtn.disabled = cloud.busy || !loggedIn || !cloud.ready || !hasLocalProgress();
-    if (useCloudBtn) useCloudBtn.disabled = cloud.busy || !loggedIn || !cloud.ready || !cloud.cloudSnapshot;
     renderCloudMessage();
 }
 
@@ -524,6 +520,104 @@ function applyFanQuestSnapshot(snapshot) {
     if (albumModal && !albumModal.classList.contains("hidden")) App.showAlbum();
 }
 
+function latestTimestamp(...values) {
+    return values
+        .filter(Boolean)
+        .map(value => new Date(value).getTime())
+        .filter(Number.isFinite)
+        .sort((a, b) => b - a)[0] || 0;
+}
+
+function mergeProgressEntry(localEntry = {}, cloudEntry = {}) {
+    const localTime = latestTimestamp(localEntry.lastPlayedAt);
+    const cloudTime = latestTimestamp(cloudEntry.lastPlayedAt);
+    const latest = localTime >= cloudTime ? localEntry : cloudEntry;
+    return {
+        ...cloudEntry,
+        ...localEntry,
+        ...latest,
+        playCount: Math.max(Number(localEntry.playCount) || 0, Number(cloudEntry.playCount) || 0),
+        highScore: Math.max(Number(localEntry.highScore) || 0, Number(cloudEntry.highScore) || 0),
+        lastScore: Number(latest.lastScore) || Math.max(Number(localEntry.lastScore) || 0, Number(cloudEntry.lastScore) || 0),
+        games: uniqueIds([...(cloudEntry.games || []), ...(localEntry.games || [])])
+    };
+}
+
+function mergeGameProgress(localProgress = {}, cloudProgress = {}) {
+    const local = normalizeGameProgress(localProgress);
+    const remote = normalizeGameProgress(cloudProgress);
+    const localTime = latestTimestamp(local.lastPlayedAt);
+    const remoteTime = latestTimestamp(remote.lastPlayedAt);
+    const latest = localTime >= remoteTime ? local : remote;
+    const modes = {};
+    const games = {};
+
+    uniqueIds([...Object.keys(remote.modes || {}), ...Object.keys(local.modes || {})]).forEach(mode => {
+        modes[mode] = mergeProgressEntry(local.modes[mode], remote.modes[mode]);
+    });
+    uniqueIds([...Object.keys(remote.games || {}), ...Object.keys(local.games || {})]).forEach(gameId => {
+        games[gameId] = mergeProgressEntry(local.games[gameId], remote.games[gameId]);
+    });
+
+    return {
+        version: 1,
+        totalSessions: Math.max(Number(local.totalSessions) || 0, Number(remote.totalSessions) || 0),
+        lastPlayedAt: latest.lastPlayedAt || local.lastPlayedAt || remote.lastPlayedAt || null,
+        lastMode: latest.lastMode || local.lastMode || remote.lastMode || null,
+        lastScore: Number(latest.lastScore) || Math.max(Number(local.lastScore) || 0, Number(remote.lastScore) || 0),
+        modes,
+        games
+    };
+}
+
+function mergeFanQuestSnapshots(localSnapshot, cloudSnapshot) {
+    if (!cloudSnapshot) return localSnapshot;
+    if (!localSnapshot) return cloudSnapshot;
+
+    const localXp = Number(localSnapshot.xp ?? localSnapshot.totalScore) || 0;
+    const cloudXp = Number(cloudSnapshot.xp ?? cloudSnapshot.totalScore) || 0;
+    const xp = Math.max(localXp, cloudXp);
+    const unlockedIds = uniqueIds([...(cloudSnapshot.unlockedIds || []), ...(localSnapshot.unlockedIds || [])]);
+    const memberDexMap = new Map();
+    [...(cloudSnapshot.memberDex || []), ...(localSnapshot.memberDex || [])].forEach(entry => {
+        if (!entry?.member_id) return;
+        const key = String(entry.member_id);
+        const existing = memberDexMap.get(key);
+        if (!existing || latestTimestamp(entry.unlocked_at) >= latestTimestamp(existing.unlocked_at)) {
+            memberDexMap.set(key, entry);
+        }
+    });
+
+    const savedAt = new Date().toISOString();
+    return {
+        ...cloudSnapshot,
+        ...localSnapshot,
+        savedAt,
+        level: getCurrentLevel(xp),
+        xp,
+        totalScore: xp,
+        title: getLevelLabel(xp),
+        myOshiId: localSnapshot.myOshiId || cloudSnapshot.myOshiId || null,
+        unlockedIds,
+        achievements: uniqueIds([...(cloudSnapshot.achievements || []), ...(localSnapshot.achievements || [])]),
+        gameProgress: mergeGameProgress(localSnapshot.gameProgress, cloudSnapshot.gameProgress),
+        memberDex: unlockedIds.map(memberId => {
+            const existing = memberDexMap.get(String(memberId));
+            if (existing) return existing;
+            const member = membersDB.find(m => String(m.id) === String(memberId));
+            return {
+                member_id: String(memberId),
+                unlocked_at: savedAt,
+                card_data: buildMemberCardData(member, memberId)
+            };
+        })
+    };
+}
+
+function isMemberDexForeignKeyError(err) {
+    return err?.code === "23503" && String(err.message || "").includes("fan_quest_member_dex");
+}
+
 function scheduleCloudSave(reason = "local_change") {
     if (!cloud.ready || !cloud.user || !cloud.syncEnabled) return;
     clearTimeout(cloud.saveTimer);
@@ -571,10 +665,10 @@ async function initCloudSave() {
             }
             setCloudMessageKey("cloud_signed_in");
             updateCloudUI("cloud_save_available");
-            await loadCloudSnapshot({ silent: true, promptConflict: true });
+            await loadCloudSnapshot({ silent: true });
         });
         if (cloud.user) {
-            await loadCloudSnapshot({ silent: true, promptConflict: true });
+            await loadCloudSnapshot({ silent: true });
         } else {
             setCloudMessageKey("cloud_login_hint");
             updateCloudUI("cloud_local_only");
@@ -613,10 +707,6 @@ function bindCloudEvents() {
 
     document.getElementById("cloudLoginForm")?.addEventListener("submit", loginCloudAccount);
     document.getElementById("cloudLogoutBtn")?.addEventListener("click", logoutCloudAccount);
-    document.getElementById("cloudSaveBtn")?.addEventListener("click", () => saveCloudSnapshot({ manual: true }));
-    document.getElementById("cloudImportBtn")?.addEventListener("click", importLocalProgressToCloud);
-    document.getElementById("cloudLoadBtn")?.addEventListener("click", loadCloudProgressIntoLocal);
-    document.getElementById("cloudUseCloudBtn")?.addEventListener("click", loadCloudProgressIntoLocal);
 }
 
 async function loginCloudAccount(event) {
@@ -658,7 +748,7 @@ async function loginCloudAccount(event) {
         if (cloud.user) {
             document.getElementById("accountPopover").hidden = true;
             document.getElementById("accountToggleBtn")?.setAttribute("aria-expanded", "false");
-            await loadCloudSnapshot({ silent: true, promptConflict: true });
+            await loadCloudSnapshot({ silent: true });
         }
     } catch (err) {
         console.warn("Account action failed", err);
@@ -687,7 +777,7 @@ async function logoutCloudAccount() {
     }
 }
 
-async function loadCloudSnapshot({ silent = false, promptConflict = true } = {}) {
+async function loadCloudSnapshot({ silent = false } = {}) {
     if (!requireCloudUser()) return null;
     if (!silent) setCloudBusy(true);
     if (!silent) updateCloudUI("cloud_syncing");
@@ -710,27 +800,42 @@ async function loadCloudSnapshot({ silent = false, promptConflict = true } = {})
         cloud.cloudSnapshot = hasCloudRows ? cloudRowsToSnapshot(cloud.profile, cloud.progressRows, cloud.dexRows) : null;
 
         if (!cloud.cloudSnapshot) {
-            cloud.syncEnabled = false;
-            setCloudMessageKey(hasLocalProgress() ? "cloud_no_profile_import" : "cloud_no_profile");
-            updateCloudUI("cloud_save_available");
+            cloud.syncEnabled = true;
+            if (hasLocalProgress()) {
+                const saveResult = await saveCloudSnapshot({ silent: true, force: true, reason: "auto_initial_import" });
+                if (saveResult?.ok && !saveResult.dexFkWarning) {
+                    setCloudMessageKey("cloud_auto_imported");
+                    updateCloudUI("cloud_synced");
+                }
+            } else {
+                setCloudMessageKey("cloud_auto_sync_ready");
+                updateCloudUI("cloud_save_available");
+            }
             return null;
         }
 
         const localSnapshot = buildFanQuestSnapshot();
         const localHasProgress = hasLocalProgress();
         const differs = snapshotsDiffer(localSnapshot, cloud.cloudSnapshot);
-        if (!localHasProgress || !differs) {
+        if (!localHasProgress) {
             applyFanQuestSnapshot(cloud.cloudSnapshot);
             cloud.syncEnabled = true;
             setCloudMessageKey("cloud_progress_loaded");
             updateCloudUI("cloud_progress_loaded");
-        } else if (promptConflict) {
-            cloud.syncEnabled = false;
-            setCloudMessageKey("cloud_conflict");
-            updateCloudUI("cloud_unsaved_changes");
+        } else if (differs) {
+            const mergedSnapshot = mergeFanQuestSnapshots(localSnapshot, cloud.cloudSnapshot);
+            applyFanQuestSnapshot(mergedSnapshot);
+            cloud.syncEnabled = true;
+            const saveResult = await saveCloudSnapshot({ silent: true, force: true, reason: "auto_merge" });
+            if (saveResult?.ok && !saveResult.dexFkWarning) {
+                setCloudMessageKey("cloud_auto_merged");
+                updateCloudUI("cloud_synced");
+            }
         } else {
-            setCloudMessageKey("cloud_save_available");
-            updateCloudUI("cloud_save_available");
+            applyFanQuestSnapshot(cloud.cloudSnapshot);
+            cloud.syncEnabled = true;
+            setCloudMessageKey("cloud_synced");
+            updateCloudUI("cloud_synced");
         }
         return cloud.cloudSnapshot;
     } catch (err) {
@@ -746,18 +851,19 @@ async function loadCloudSnapshot({ silent = false, promptConflict = true } = {})
 async function saveCloudSnapshot({ manual = false, silent = false, force = false, reason = "manual" } = {}) {
     if (!requireCloudUser()) return;
     const snapshot = buildFanQuestSnapshot();
-    if (!force && cloud.cloudSnapshot && !cloud.syncEnabled && snapshotsDiffer(snapshot, cloud.cloudSnapshot)) {
+        if (!force && cloud.cloudSnapshot && !cloud.syncEnabled && snapshotsDiffer(snapshot, cloud.cloudSnapshot)) {
         const ok = window.confirm(t("cloud_confirm_overwrite"));
         if (!ok) {
             setCloudMessageKey("cloud_conflict_cancelled");
             updateCloudUI("cloud_unsaved_changes");
-            return;
+            return { ok: false, cancelled: true };
         }
     }
 
     if (!silent) setCloudBusy(true);
     updateCloudUI("cloud_syncing");
     try {
+        cloud.dexFkWarning = false;
         const userId = cloud.user.id;
         const profilePayload = {
             user_id: userId,
@@ -774,19 +880,29 @@ async function saveCloudSnapshot({ manual = false, silent = false, force = false
             await upsertProgressRecord(row.game_slug, row.progress_data);
         }
 
+        let dexFkWarning = false;
         if (snapshot.memberDex.length) {
-            await upsertMemberDexRows(snapshot.memberDex);
+            try {
+                await upsertMemberDexRows(snapshot.memberDex);
+            } catch (err) {
+                if (!isMemberDexForeignKeyError(err)) throw err;
+                dexFkWarning = true;
+                console.warn("Member dex table is blocked by its member_id foreign key. Profile JSON still contains the member dex snapshot.", err);
+            }
         }
 
         cloud.profile = profilePayload;
         cloud.cloudSnapshot = snapshot;
+        cloud.dexFkWarning = dexFkWarning;
         cloud.syncEnabled = true;
-        setCloudMessageKey(manual ? "cloud_saved" : "cloud_synced");
+        setCloudMessageKey(dexFkWarning ? "cloud_synced_dex_fk_warning" : (manual ? "cloud_saved" : "cloud_synced"));
         updateCloudUI("cloud_synced");
+        return { ok: true, dexFkWarning };
     } catch (err) {
         console.warn("Save cloud progress failed", err);
         setCloudMessageKey("cloud_save_failed", { message: err.message || "" });
         updateCloudUI("cloud_save_failed_local_kept");
+        return { ok: false, error: err };
     } finally {
         if (!silent) setCloudBusy(false);
     }
@@ -888,37 +1004,6 @@ async function upsertMemberDexRows(memberDex) {
             if (insertResult.error) throw insertResult.error;
         }
     }
-}
-
-async function importLocalProgressToCloud() {
-    if (!requireCloudUser()) return;
-    const ok = window.confirm(t("cloud_confirm_import"));
-    if (!ok) {
-        setCloudMessageKey("cloud_conflict_cancelled");
-        return;
-    }
-    await saveCloudSnapshot({ manual: true, force: true, reason: "import_local" });
-}
-
-async function loadCloudProgressIntoLocal() {
-    if (!requireCloudUser()) return;
-    let snapshot = cloud.cloudSnapshot;
-    if (!snapshot) snapshot = await loadCloudSnapshot({ silent: false, promptConflict: false });
-    if (!snapshot) return;
-
-    if (hasLocalProgress() && snapshotsDiffer(buildFanQuestSnapshot(), snapshot)) {
-        const ok = window.confirm(t("cloud_confirm_use_cloud"));
-        if (!ok) {
-            setCloudMessageKey("cloud_conflict_cancelled");
-            updateCloudUI("cloud_unsaved_changes");
-            return;
-        }
-    }
-
-    applyFanQuestSnapshot(snapshot);
-    cloud.syncEnabled = true;
-    setCloudMessageKey("cloud_progress_loaded");
-    updateCloudUI("cloud_progress_loaded");
 }
 
 document.getElementById('langSelector').addEventListener('change', (e) => { currentLang = e.target.value; applyLang(); });
