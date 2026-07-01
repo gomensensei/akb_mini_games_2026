@@ -124,12 +124,19 @@ function normalizeMembers(rawList) {
             genNum: gNum,
             image: m.img_url || m.image || m.img || m.photo,
             colorsArray: colors,
+            active: m.active,
+            selectable: m.selectable,
+            hiddenFromSelection: m.hiddenFromSelection,
             imgLoaded: false 
         };
     });
 }
 
-function getValidPool() { return membersDB.filter(m => m.imgLoaded); }
+function isSelectableMember(member) {
+    return Boolean(member) && member.active !== false && member.selectable !== false && member.hiddenFromSelection !== true;
+}
+
+function getValidPool() { return membersDB.filter(m => m.imgLoaded && isSelectableMember(m)); }
 
 async function loadData() {
     try {
@@ -171,7 +178,7 @@ function populateMemberSelector() {
     const currentVal = bgSel.value;
     
     bgSel.innerHTML = `<option value="auto" data-i18n="bg_auto">${langs[currentLang].bg_auto || '✨ 專屬應援色 (Auto)'}</option>`;
-    membersDB.forEach(m => {
+    membersDB.filter(isSelectableMember).forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
         opt.textContent = `🎨 ${getDisplayName(m)}`;
@@ -1098,7 +1105,7 @@ const App = {
         const grid = document.getElementById('oshiSelectGrid');
         grid.innerHTML = '';
         
-        [...membersDB].sort((a,b) => a.genNum - b.genNum).forEach(m => {
+        membersDB.filter(isSelectableMember).sort((a,b) => a.genNum - b.genNum).forEach(m => {
             const item = document.createElement('div');
             item.className = `oshi-item ${userData.myOshiId === m.id ? 'selected' : ''}`;
             item.onclick = () => {
