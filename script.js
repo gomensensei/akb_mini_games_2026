@@ -38,7 +38,7 @@ function getCurrentLevel(score = userData.totalScore) {
     return Math.floor((Number(score) || 0) / 10000) + 1;
 }
 
-// 🌟 RPG 數據存儲
+// RPG data storage
 let userData = {
     totalScore: parseInt(localStorage.getItem('akb_total_xp')) || 0,
     unlockedIds: uniqueIds(readStoredJson('akb_unlocked', [])),
@@ -77,7 +77,7 @@ function getGenYear(m) {
     if (gen.includes("Team 8") || gen.includes("チーム8")) return 2014;
     if (gen.includes("D2") || gen.includes("ドラフト2")) return 2015;
     if (gen.includes("16期")) return 2016;
-    if (gen.includes("D3") || gen.includes("ドラフト3")) return 2018; // 🌟 修正：D3 為 2018 年
+    if (gen.includes("D3") || gen.includes("ドラフト3")) return 2018; // D3 is 2018
     if (gen.includes("17期")) return 2022;
     if (gen.includes("18期")) return 2023;
     if (gen.includes("19期") || gen.includes("20期")) return 2024;
@@ -100,7 +100,7 @@ function normalizeMembers(rawList) {
         let gStr = m.ki || m.generation || "Unknown";
         let gNum = parseFloat(m.genNum) || parseFloat(m.ki) || 99;
         
-        // 🌟 修正：確保期數排序邏輯完全符合加入順序
+        // Keep generation sorting aligned with join order.
         if (gStr.includes("Team 8") || gStr.includes("チーム8")) {
             if (m.name_ja === "坂川 陽香" || m.name_ja === "徳永 羚海") {
                 gNum = 16.5; // 2019加入，排喺 D3(16.1) 之後，17期(17.0) 之前
@@ -109,7 +109,7 @@ function normalizeMembers(rawList) {
             }
         }
         if (gStr.includes("ドラフト2") || gStr.includes("D2")) gNum = 15.2; // 2015加入
-        if (gStr.includes("ドラフト3") || gStr.includes("D3")) gNum = 16.1; // 🌟 修正：2018加入，排喺 16期(16.0) 之後
+        if (gStr.includes("ドラフト3") || gStr.includes("D3")) gNum = 16.1; // 2018 join, after 16ki
 
         return {
             id: String(m.id || index),
@@ -177,11 +177,11 @@ function populateMemberSelector() {
     if (!bgSel || membersDB.length === 0) return;
     const currentVal = bgSel.value;
     
-    bgSel.innerHTML = `<option value="auto" data-i18n="bg_auto">${langs[currentLang].bg_auto || '✨ 專屬應援色 (Auto)'}</option>`;
+    bgSel.innerHTML = `<option value="auto" data-i18n="bg_auto">${langs[currentLang].bg_auto || '專屬應援色 (Auto)'}</option>`;
     membersDB.filter(isSelectableMember).forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
-        opt.textContent = `🎨 ${getDisplayName(m)}`;
+        opt.textContent = getDisplayName(m);
         bgSel.appendChild(opt);
     });
     bgSel.value = currentVal; 
@@ -1375,11 +1375,11 @@ const App = {
         if(this.mode === 'classic') maxPossible = (2 * 1 * 2000) + (6 * 5 * 2000); 
         if(this.mode === 'challenge') maxPossible *= 1.5;
         const ratio = this.score / (maxPossible || 1);
-        if(ratio > 0.8) return { badge: "👑", key: "r1" };
-        if(ratio > 0.6) return { badge: "🌟", key: "r2" };
-        if(ratio > 0.4) return { badge: "🔥", key: "r3" };
-        if(ratio > 0.2) return { badge: "🐣", key: "r4" };
-        return { badge: "☕", key: "r5" };
+        if(ratio > 0.8) return { badge: "R1", key: "r1" };
+        if(ratio > 0.6) return { badge: "R2", key: "r2" };
+        if(ratio > 0.4) return { badge: "R3", key: "r3" };
+        if(ratio > 0.2) return { badge: "R4", key: "r4" };
+        return { badge: "R5", key: "r5" };
     },
 
     getPlayedGamesStr() {

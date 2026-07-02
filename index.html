@@ -22,7 +22,7 @@
     <header class="topbar">
         <div class="topbar-left">
             <a class="tool48-home-link" href="/" aria-label="Tool48">Tool48</a>
-            <button class="btn btn-outline hidden" style="padding: 6px 12px; font-size:0.9rem;" id="btnHome">🏠 <span data-i18n="btn_home">首頁</span></button>
+            <button class="btn btn-outline hidden" style="padding: 6px 12px; font-size:0.9rem;" id="btnHome"><span class="tool-icon tool-icon-home" aria-hidden="true"></span><span data-i18n="btn_home">首頁</span></button>
             <select class="lang-select" id="langSelector">
                 <option value="zh-HK">繁體 (HK)</option>
                 <option value="zh-TW">繁體 (TW)</option>
@@ -91,11 +91,11 @@
 
         <div style="display:flex; flex-direction:column; align-items:center; gap: 15px;">
             <div style="display:flex; align-items:center; gap: 15px;">
-                <span class="blink" style="font-size: 2rem;">👉</span>
+                <span class="intro-signal tool-icon tool-icon-spark" aria-hidden="true"></span>
                 <button class="btn glow-box-breathe float-anim" style="font-size: 1.2rem; padding: 15px 30px; letter-spacing: 2px;" onclick="App.showOshiSelect()" data-i18n="btn_start_game">GAME START</button>
-                <span class="blink" style="font-size: 2rem;">👈</span>
+                <span class="intro-signal tool-icon tool-icon-spark" aria-hidden="true"></span>
             </div>
-            <button class="btn btn-outline" onclick="App.showAlbum()" style="width: 100%;">📖 <span data-i18n="btn_album">成員圖鑑</span></button>
+            <button class="btn btn-outline" onclick="App.showAlbum()" style="width: 100%;"><span class="tool-icon tool-icon-book" aria-hidden="true"></span><span data-i18n="btn_album">成員圖鑑</span></button>
         </div>
     </main>
 
@@ -112,7 +112,7 @@
         <div class="glass-panel" style="padding: 20px; width: 95%; max-width: 600px; height: 90vh; display:flex; flex-direction:column;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h2 style="color: var(--primary); margin:0;" data-i18n="album_title">成員收藏圖鑑</h2>
-                <button class="btn btn-outline" style="padding:5px 15px;" onclick="document.getElementById('albumModal').classList.add('hidden')">✕</button>
+                <button class="btn btn-outline" style="padding:5px 15px;" onclick="document.getElementById('albumModal').classList.add('hidden')">&times;</button>
             </div>
             <div class="album-grid" id="albumGrid"></div>
         </div>
@@ -127,32 +127,32 @@
         <h2 class="glow-text-breathe intro-title" style="margin: 0 0 20px;" data-i18n="select_mode">選擇模式</h2>
         <div class="dashboard-menu">
             <div class="mode-card glass-panel glow-box-breathe float-anim" style="animation-delay: 0s;" onclick="App.startMode('classic')">
-                <h2 data-i18n="mode_classic">🏆 經典挑戰</h2>
+                <h2><span class="tool-icon mode-icon mode-icon-classic" aria-hidden="true"></span><span data-i18n="mode_classic">經典挑戰</span></h2>
                 <p data-i18n="desc_classic">挑戰 8 項小遊戲，和朋友比拼分數！</p>
             </div>
             <div class="mode-card glass-panel float-anim" style="animation-delay: 0.2s;" onclick="App.showModal('casual')">
-                <h2 data-i18n="mode_casual">☕ 自由探索</h2>
+                <h2><span class="tool-icon mode-icon mode-icon-casual" aria-hidden="true"></span><span data-i18n="mode_casual">自由探索</span></h2>
                 <p data-i18n="desc_casual">選擇單一遊戲輕鬆遊玩。</p>
             </div>
             <div class="mode-card glass-panel float-anim" style="animation-delay: 0.4s;" onclick="App.showModal('custom')">
-                <h2 data-i18n="mode_custom">🛠️ 自訂組合</h2>
+                <h2><span class="tool-icon mode-icon mode-icon-custom" aria-hidden="true"></span><span data-i18n="mode_custom">自訂組合</span></h2>
                 <p data-i18n="desc_custom">挑選你喜歡的遊戲清單。</p>
             </div>
             <div class="mode-card glass-panel float-anim" style="animation-delay: 0.6s;" onclick="App.showModal('challenge')">
-                <h2 data-i18n="mode_challenge">🔥 極限生存</h2>
+                <h2><span class="tool-icon mode-icon mode-icon-challenge" aria-hidden="true"></span><span data-i18n="mode_challenge">極限生存</span></h2>
                 <p data-i18n="desc_challenge">單一遊戲 50 回合耐久戰！</p>
             </div>
         </div>
 
         <div class="leaderboard-box" id="lbContainer" style="margin-top: 20px;">
-            <h3 class="leaderboard-title" data-i18n="lb_title">🔥 挑戰者排行榜</h3>
+            <h3 class="leaderboard-title"><span class="tool-icon tool-icon-rank" aria-hidden="true"></span><span data-i18n="lb_title">挑戰者排行榜</span></h3>
             <ul class="lb-list" id="lbList"></ul>
         </div>
     </main>
 
     <div class="modal-overlay flex-center hidden" id="instructionModal">
         <div class="glass-panel" style="padding: 20px; width: 90%; max-width: 450px; position: relative; max-height: 80vh; display: flex; flex-direction: column;">
-            <button style="position: absolute; top: 10px; right: 15px; background: transparent; border: none; font-size: 1.5rem; font-weight: 900; color: var(--text-sec); cursor: pointer;" onclick="App.closeInstructions()">✕</button>
+            <button style="position: absolute; top: 10px; right: 15px; background: transparent; border: none; font-size: 1.5rem; font-weight: 900; color: var(--text-sec); cursor: pointer;" onclick="App.closeInstructions()">&times;</button>
             <h2 style="color: var(--primary); text-align: center; margin-top: 0;" data-i18n="inst_title">遊戲操作說明</h2>
             
             <div style="flex: 1; overflow-y: auto; padding-right: 10px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: var(--text-main);" id="allInstructionsList"></div>
@@ -192,17 +192,17 @@
         
         <div class="social-panel">
             <select id="bgColorSelector" class="name-input" style="margin-bottom: 8px; cursor: pointer;" onchange="App.updateResultView()">
-                <option value="auto" data-i18n="bg_auto">✨ 專屬應援色 (Auto)</option>
+                <option value="auto" data-i18n="bg_auto">專屬應援色 (Auto)</option>
             </select>
             
             <input type="text" id="playerName" class="name-input hidden" maxlength="12" placeholder="輸入名字參與排行榜" data-i18n-placeholder="ph_name" oninput="App.generateResultCanvas()">
             
             <div class="row">
-                <button class="btn" style="flex: 1.2;" onclick="App.downloadResult()">📥 <span data-i18n="btn_dl">下載</span></button>
-                <button class="btn" style="flex: 1;" onclick="App.copyLink()">📋 <span data-i18n="btn_copy">連結</span></button>
+                <button class="btn" style="flex: 1.2;" onclick="App.downloadResult()"><span class="tool-icon tool-icon-download" aria-hidden="true"></span><span data-i18n="btn_dl">下載</span></button>
+                <button class="btn" style="flex: 1;" onclick="App.copyLink()"><span class="tool-icon tool-icon-link" aria-hidden="true"></span><span data-i18n="btn_copy">連結</span></button>
                 <button class="btn" style="flex: 1.2; background: #000;" onclick="App.shareToX()">𝕏 <span id="btnShareText" data-i18n="btn_share">分享</span></button>
             </div>
-            <button class="btn btn-outline" style="width: 100%;" onclick="App.goHome()">🏠 <span data-i18n="btn_back_home">回主選單</span></button>
+            <button class="btn btn-outline" style="width: 100%;" onclick="App.goHome()"><span class="tool-icon tool-icon-home" aria-hidden="true"></span><span data-i18n="btn_back_home">回主選單</span></button>
         </div>
     </main>
 
@@ -219,15 +219,27 @@
 
     <div class="modal-overlay flex-center hidden" id="downloadModal" style="z-index: 200;">
         <div class="glass-panel" style="padding: 20px; text-align: center; max-width: 90vw; width: 400px;">
-            <h3 style="color: var(--primary); margin-top:0;" data-i18n="long_press_save">👇 長按圖片即可保存 👇</h3>
+            <h3 style="color: var(--primary); margin-top:0;" data-i18n="long_press_save">長按圖片即可保存</h3>
             <img id="exportImgDisplay" src="" style="width: 100%; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
             <button class="btn btn-outline" style="margin-top: 15px; width: 100%;" onclick="document.getElementById('downloadModal').classList.add('hidden')" data-i18n="btn_cancel">關閉</button>
         </div>
     </div>
 
     <footer class="app-footer">
-        <p data-i18n="footer_text">希望新粉絲能進一步了解如何支持成員，現有粉絲能發掘更多推（推し増し）。網站僅供非商業用途使用，版權歸©AKB48及株式会社DH所有。由粉絲 ゴメン先生 (gomensensei) 製作。</p>
-        <p data-i18n="privacy_promise">未經你明確同意，不會披露你的個人資料。</p>
+        <div class="footer-copy">
+            <p data-i18n="footer_text">希望新粉絲能進一步了解如何支持成員，現有粉絲能發掘更多推（推し増し）。網站僅供非商業用途使用，版權歸©AKB48及株式会社DH所有。由粉絲 ゴメン先生 (gomensensei) 製作。</p>
+            <p data-i18n="privacy_promise">未經你同意，不會公開你的資料。</p>
+        </div>
+        <div class="footer-links">
+            <a href="https://x.com/sorrysir_gomen" target="_blank" rel="noopener">
+                <span class="footer-link-icon footer-link-icon-bug" aria-hidden="true"></span>
+                <span data-i18n="report_bug">回報錯誤</span>
+            </a>
+            <a href="https://www.paypal.com/paypalme/gomensensei" target="_blank" rel="noopener">
+                <span class="footer-link-icon footer-link-icon-heart" aria-hidden="true"></span>
+                <span data-i18n="donate">捐款支持</span>
+            </a>
+        </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
