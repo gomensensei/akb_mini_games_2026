@@ -120,7 +120,8 @@
     "cloud_auto_sync_ready": "已登入；之後進度會自動同步。",
     "cloud_auto_imported": "已自動將本機進度同步到雲端。",
     "cloud_auto_merged": "已自動合併本機同雲端進度，並同步到雲端。",
-    "cloud_synced_dex_fk_warning": "主要進度已同步；成員圖鑑表被 Supabase member_id FK 擋住，請套用 SQL fix。"
+    "cloud_synced_dex_fk_warning": "主要進度已同步；成員圖鑑表被 Supabase member_id FK 擋住，請套用 SQL fix。",
+    "privacy_promise": "未經你明確同意，不會披露你的個人資料。"
   },
   "zh-TW": {
     "app_title": "AKB48 粉絲入門挑戰",
@@ -245,7 +246,8 @@
     "cloud_auto_sync_ready": "已登入；之後進度會自動同步。",
     "cloud_auto_imported": "已自動將本機進度同步到雲端。",
     "cloud_auto_merged": "已自動合併本機與雲端進度，並同步到雲端。",
-    "cloud_synced_dex_fk_warning": "主要進度已同步；成員圖鑑表被 Supabase member_id FK 擋住，請套用 SQL fix。"
+    "cloud_synced_dex_fk_warning": "主要進度已同步；成員圖鑑表被 Supabase member_id FK 擋住，請套用 SQL fix。",
+    "privacy_promise": "未經你明確同意，不會披露你的個人資料。"
   },
   "zh-CN": {
     "app_title": "AKB48 粉丝入门挑战",
@@ -370,7 +372,8 @@
     "cloud_auto_sync_ready": "已登录；之后进度会自动同步。",
     "cloud_auto_imported": "已自动将本机进度同步到云端。",
     "cloud_auto_merged": "已自动合并本机与云端进度，并同步到云端。",
-    "cloud_synced_dex_fk_warning": "主要进度已同步；成员图鉴表被 Supabase member_id FK 阻挡，请套用 SQL fix。"
+    "cloud_synced_dex_fk_warning": "主要进度已同步；成员图鉴表被 Supabase member_id FK 阻挡，请套用 SQL fix。",
+    "privacy_promise": "未经你明确同意，不会披露你的个人资料。"
   },
   "ja": {
     "app_title": "AKB48 ファン入門テスト",
@@ -495,7 +498,8 @@
     "cloud_auto_sync_ready": "ログインしました。以後の進行状況は自動同期されます。",
     "cloud_auto_imported": "端末の進行状況を自動でクラウドに同期しました。",
     "cloud_auto_merged": "端末とクラウドの進行状況を自動で統合し、クラウドに同期しました。",
-    "cloud_synced_dex_fk_warning": "主な進行状況は同期済みです。メンバー図鑑テーブルは Supabase member_id FK にブロックされています。SQL fix を適用してください。"
+    "cloud_synced_dex_fk_warning": "主な進行状況は同期済みです。メンバー図鑑テーブルは Supabase member_id FK にブロックされています。SQL fix を適用してください。",
+    "privacy_promise": "明確な同意なしに、個人情報を開示することはありません。"
   },
   "en": {
     "app_title": "AKB48 Fan Quest",
@@ -620,7 +624,8 @@
     "cloud_auto_sync_ready": "Signed in. Progress will sync automatically from now on.",
     "cloud_auto_imported": "Local progress was automatically synced to cloud.",
     "cloud_auto_merged": "Local and cloud progress were automatically merged and synced.",
-    "cloud_synced_dex_fk_warning": "Main progress synced; member dex table is blocked by the Supabase member_id FK. Apply the SQL fix."
+    "cloud_synced_dex_fk_warning": "Main progress synced; member dex table is blocked by the Supabase member_id FK. Apply the SQL fix.",
+    "privacy_promise": "We will not disclose your personal data without your explicit consent."
   },
   "ko": {
     "app_title": "AKB48 팬 입문 테스트",
@@ -745,7 +750,8 @@
     "cloud_auto_sync_ready": "로그인했습니다. 이제 진행 상황이 자동으로 동기화됩니다.",
     "cloud_auto_imported": "로컬 진행 상황을 자동으로 클라우드에 동기화했습니다.",
     "cloud_auto_merged": "로컬과 클라우드 진행 상황을 자동으로 병합하고 동기화했습니다.",
-    "cloud_synced_dex_fk_warning": "주요 진행 상황은 동기화됐습니다. 멤버 도감 테이블은 Supabase member_id FK에 의해 막혀 있습니다. SQL fix를 적용해 주세요."
+    "cloud_synced_dex_fk_warning": "주요 진행 상황은 동기화됐습니다. 멤버 도감 테이블은 Supabase member_id FK에 의해 막혀 있습니다. SQL fix를 적용해 주세요.",
+    "privacy_promise": "명시적인 동의 없이 개인 정보를 공개하지 않습니다."
   },
   "th": {
     "app_title": "บททดสอบแฟนคลับ AKB48",
@@ -870,7 +876,8 @@
     "cloud_auto_sync_ready": "เข้าสู่ระบบแล้ว จากนี้ความคืบหน้าจะซิงก์อัตโนมัติ",
     "cloud_auto_imported": "ซิงก์ความคืบหน้าในเครื่องไปยังคลาวด์อัตโนมัติแล้ว",
     "cloud_auto_merged": "รวมความคืบหน้าในเครื่องกับคลาวด์และซิงก์อัตโนมัติแล้ว",
-    "cloud_synced_dex_fk_warning": "ซิงก์ความคืบหน้าหลักแล้ว แต่ตาราง member dex ถูกบล็อกโดย Supabase member_id FK กรุณาใช้ SQL fix"
+    "cloud_synced_dex_fk_warning": "ซิงก์ความคืบหน้าหลักแล้ว แต่ตาราง member dex ถูกบล็อกโดย Supabase member_id FK กรุณาใช้ SQL fix",
+    "privacy_promise": "เราจะไม่เปิดเผยข้อมูลส่วนบุคคลของคุณหากไม่ได้รับความยินยอมอย่างชัดเจนจากคุณ"
   },
   "id": {
     "app_title": "Tes Fans AKB48",
@@ -995,6 +1002,7 @@
     "cloud_auto_sync_ready": "Sudah masuk. Mulai sekarang progres akan sinkron otomatis.",
     "cloud_auto_imported": "Progres lokal otomatis disinkronkan ke cloud.",
     "cloud_auto_merged": "Progres lokal dan cloud otomatis digabung lalu disinkronkan.",
-    "cloud_synced_dex_fk_warning": "Progres utama tersinkron; tabel member dex diblokir oleh Supabase member_id FK. Terapkan SQL fix."
+    "cloud_synced_dex_fk_warning": "Progres utama tersinkron; tabel member dex diblokir oleh Supabase member_id FK. Terapkan SQL fix.",
+    "privacy_promise": "Kami tidak akan mengungkapkan data pribadi Anda tanpa persetujuan jelas dari Anda."
   }
 }

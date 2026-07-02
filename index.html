@@ -22,6 +22,7 @@
 
     <header class="topbar">
         <div class="topbar-left">
+            <a class="tool48-home-link" href="/" aria-label="Tool48">Tool48</a>
             <button class="btn btn-outline hidden" style="padding: 6px 12px; font-size:0.9rem;" id="btnHome">🏠 <span data-i18n="btn_home">首頁</span></button>
             <select class="lang-select" id="langSelector">
                 <option value="zh-HK">繁體 (HK)</option>
@@ -43,7 +44,7 @@
                 Score: <span id="scoreDisplay">0</span>
             </div>
             <button class="account-toggle" id="accountToggleBtn" type="button" aria-expanded="false" aria-controls="accountPopover">
-                <span class="account-toggle-icon" aria-hidden="true">☁</span>
+                <span class="account-toggle-icon" aria-hidden="true"></span>
                 <span class="account-toggle-label" data-i18n="account_nav_guest">Account</span>
             </button>
         </div>
@@ -225,8 +226,9 @@
         </div>
     </div>
 
-    <footer class="app-footer" data-i18n="footer_text">
-        希望新粉絲能進一步了解如何支持成員，現有粉絲能發掘更多推（推し増し）。網站僅供非商業用途使用，版權歸©AKB48及株式会社DH所有。由粉絲 ゴメン先生 (gomensensei) 製作。
+    <footer class="app-footer">
+        <p data-i18n="footer_text">希望新粉絲能進一步了解如何支持成員，現有粉絲能發掘更多推（推し増し）。網站僅供非商業用途使用，版權歸©AKB48及株式会社DH所有。由粉絲 ゴメン先生 (gomensensei) 製作。</p>
+        <p data-i18n="privacy_promise">未經你明確同意，不會披露你的個人資料。</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
