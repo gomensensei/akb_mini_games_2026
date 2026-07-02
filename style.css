@@ -1,5 +1,9 @@
-:root { --bg-1: #e0eafc; --bg-2: #cfdef3; --bg-3: #FFB6C1; --bg-4: #f8bbd0; --primary: #FF4081; --text-main: #2C3E50; --text-sec: #7F8C8D; }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: 'Noto Sans JP', sans-serif; }
+@font-face { font-family: 'ITC Avant Garde Gothic Std Extra Light'; src: url('fonts/ITC Avant Garde Gothic Std Extra Light.woff2') format('woff2'); }
+@font-face { font-family: 'AR ADGothicJP'; src: url('fonts/jadhei01m.woff2') format('woff2'); }
+@font-face { font-family: 'KozGoPr6N'; src: url('fonts/KozGoPr6N-Medium.woff2') format('woff2'); }
+
+:root { --bg-1: #e0eafc; --bg-2: #cfdef3; --bg-3: #FFB6C1; --bg-4: #f8bbd0; --primary: #F676A6; --primary-hover: #E55A8C; --text-main: #2C3E50; --text-sec: #7F8C8D; --tool48-account-bg: rgba(255,255,255,0.58); --tool48-account-border: rgba(255,255,255,0.6); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: 'KozGoPr6N', 'AR ADGothicJP', 'Noto Sans JP', sans-serif; }
 
 /* ==========================================
    防護罩：防止反白、拖曳與長按選單
@@ -35,7 +39,7 @@ input, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-se
 
 .topbar { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; z-index: 50; flex-shrink: 0; gap: 8px; white-space: nowrap; }
 .topbar-left { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-.tool48-home-link { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(255,64,129,0.24); background: rgba(255,255,255,0.86); color: var(--primary); box-shadow: 0 6px 18px rgba(255,64,129,0.12); font-size: 0.78rem; font-weight: 900; text-decoration: none; }
+.tool48-home-link { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--tool48-account-border); background: var(--tool48-account-bg); color: var(--primary); box-shadow: 0 8px 22px rgba(246,118,166,0.14); font-size: 0.78rem; font-weight: 900; text-decoration: none; }
 .tool48-home-link:hover { transform: translateY(-1px); }
 .header-center { flex: 1; display: flex; justify-content: center; min-width: 0; }
 .level-badge { background: var(--primary); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 900; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(255,64,129,0.3); overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
@@ -43,7 +47,7 @@ input, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-se
 .lang-select { padding: 4px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.5); font-weight: 700; outline: none; color: var(--text-main); max-width: 120px;}
 .topbar-right { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0; min-width: 0; }
 .score-board { position: relative; font-size: 1rem; font-weight: 900; color: var(--primary); background: rgba(255,255,255,0.9); padding: 4px 12px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); flex-shrink: 0;}
-.account-toggle { min-height: 38px; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,64,129,0.24); background: rgba(255,255,255,0.86); color: var(--primary); box-shadow: 0 6px 18px rgba(255,64,129,0.12); cursor: pointer; display: inline-flex; align-items: center; justify-content:center; gap: 6px; font-weight: 800; font-size: 0.82rem; max-width: 170px; }
+.account-toggle { min-height: 38px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--tool48-account-border); background: var(--tool48-account-bg); color: var(--primary); box-shadow: 0 8px 22px rgba(246,118,166,0.14); cursor: pointer; display: inline-flex; align-items: center; justify-content:center; gap: 6px; font-weight: 800; font-size: 0.82rem; max-width: 170px; }
 .account-toggle:hover { transform: translateY(-1px); }
 .account-toggle-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-toggle-icon { width: 18px; height: 18px; flex-shrink: 0; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3Cpath d='M7 20.7c1.2-2.1 3-3.2 5-3.2s3.8 1.1 5 3.2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3Cpath d='M7 20.7c1.2-2.1 3-3.2 5-3.2s3.8 1.1 5 3.2'/%3E%3C/svg%3E") center / contain no-repeat; }
