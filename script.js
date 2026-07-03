@@ -1450,11 +1450,18 @@ const App = {
     updateResultView() { this.generateResultCanvas(); },
 
     downloadResult() {
+        const dataUrl = document.getElementById('resultCanvasPreview').src;
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && window.innerWidth <= 768) || window.matchMedia('(max-width: 768px)').matches;
+        if (isMobile) {
+            document.getElementById('exportImgDisplay').src = dataUrl;
+            document.getElementById('downloadModal').classList.remove('hidden');
+            return;
+        }
         try {
             const link = document.createElement('a'); link.download = `AKB48_FanQuest_${this.score}.png`;
-            link.href = document.getElementById('resultCanvasPreview').src; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            link.href = dataUrl; document.body.appendChild(link); link.click(); document.body.removeChild(link);
         } catch(e) {
-            document.getElementById('exportImgDisplay').src = document.getElementById('resultCanvasPreview').src;
+            document.getElementById('exportImgDisplay').src = dataUrl;
             document.getElementById('downloadModal').classList.remove('hidden');
         }
     },
