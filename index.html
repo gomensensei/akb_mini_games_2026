@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="tool48-turnstile-site-key" content="">
     <title>AKB48 粉絲入門挑戰 - Fan Quest</title>
     <meta property="og:title" content="AKB48 粉絲入門挑戰 - Fan Quest">
     <meta property="og:description" content="最近AKB48が気になっているご新規さんと出戻り組の皆さん必見！現役メンバー52名の「顔、名前、期別、推しカラー」を楽しく覚えられるミニゲーム！">
@@ -16,6 +17,7 @@
     <meta name="twitter:image" content="https://gomensensei.github.io/akb_mini_games_2026/thumbnail.png">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="tool48-install.css?v=20260706-security">
 </head>
 <body>
 
@@ -68,6 +70,7 @@
                 <button class="cloud-action-btn primary" id="cloudSignInBtn" type="submit" data-auth-action="signin" data-i18n="cloud_sign_in">Sign in</button>
                 <button class="cloud-action-btn" id="cloudSignUpBtn" type="submit" data-auth-action="signup" data-i18n="cloud_create_account">Create account</button>
             </div>
+            <button class="tool48-reset-link" id="cloudResetPasswordBtn" type="button" data-tool48-reset-password>Forgot password</button>
         </form>
 
         <div class="cloud-actions" id="cloudActions" hidden>
@@ -243,6 +246,8 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="tool48-security.js?v=20260706-security"></script>
     <script src="script.js?v=20260704-mobile-export"></script>
+    <script src="tool48-install.js?v=20260706-security"></script>
 </body>
 </html>
