@@ -1091,5 +1091,89 @@
       }
     ],
     "image": "https://d2r1lkk9i7row.cloudfront.net/hashiranokai/member/83101029.jpg"
+  },
+  {
+    "id": "53",
+    "name_ja": "大西 ゆな",
+    "name_kana": "おおにし ゆな",
+    "name_en": "Yuna Oonishi",
+    "name_ko": "오오니시 유나",
+    "nickname": "ゆーちゃん",
+    "ki": "22期生",
+    "genNum": 22,
+    "colorData": [
+      {
+        "color": "#9b2de3",
+        "name": "紫"
+      },
+      {
+        "color": "#AACC00",
+        "name": "黃緑"
+      }
+    ],
+    "image": "https://d2r1lkk9i7row.cloudfront.net/hashiranokai/member/83101030.jpg"
+  },
+  {
+    "id": "54",
+    "name_ja": "長谷川 百々花",
+    "name_kana": "はせがわ ももか",
+    "name_en": "Momoka Hasegawa",
+    "name_ko": "하세가와 모모카",
+    "nickname": "はせもも",
+    "ki": "22期生",
+    "genNum": 22,
+    "colorData": [
+      {
+        "color": "#FB8500",
+        "name": "オレンジ"
+      },
+      {
+        "color": "#FB8500",
+        "name": "オレンジ"
+      }
+    ],
+    "image": "https://d2r1lkk9i7row.cloudfront.net/hashiranokai/member/83101031.jpg"
+  },
+  {
+    "id": "55",
+    "name_ja": "前田 衣澄",
+    "name_kana": "まえだ いずみ",
+    "name_en": "Izumi Maeda",
+    "name_ko": "마에다 이즈미",
+    "nickname": "いず",
+    "ki": "22期生",
+    "genNum": 22,
+    "colorData": [
+      {
+        "color": "#AACC00",
+        "name": "黃緑"
+      },
+      {
+        "color": "#AACC00",
+        "name": "黃緑"
+      }
+    ],
+    "image": "https://d2r1lkk9i7row.cloudfront.net/hashiranokai/member/83101032.jpg"
+  },
+  {
+    "id": "56",
+    "name_ja": "山内 利乃明",
+    "name_kana": "やまうち りのあ",
+    "name_en": "Rinoa Yamauchi",
+    "name_ko": "야마우치 리노아",
+    "nickname": "りのあ",
+    "ki": "22期生",
+    "genNum": 22,
+    "colorData": [
+      {
+        "color": "#FFB3C1",
+        "name": "薄ピンク"
+      },
+      {
+        "color": "#AACC00",
+        "name": "黃緑"
+      }
+    ],
+    "image": "https://d2r1lkk9i7row.cloudfront.net/hashiranokai/member/83101033.jpg"
   }
 ]
